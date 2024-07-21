@@ -6,7 +6,7 @@ use rand::prelude::*;
 use std::fmt::Debug;
 use std::time::Duration;
 
-use crate::{Card, Deck, DeckArea, HandArea, DECK_WIDTH};
+use crate::{Card, Deck, DeckArea, Hand, HandArea, DECK_WIDTH};
 
 // Events
 #[derive(Event)]
@@ -109,11 +109,9 @@ pub fn handle_deck_shuffle<T>(
     mut shuffle: EventReader<DeckShuffle>,
     query_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
 ) where
-    T: Send + Sync + Debug + 'static,
+    T: Send + Clone + Sync + Debug + 'static,
 {
     shuffle.read().for_each(|shuffle| {
-        println!("shuffle deck");
-
         // list all cards whose parent is deck
         let cards: Vec<(Entity, &Card<T>, &Transform)> = query_cards
             .iter()
@@ -124,8 +122,6 @@ pub fn handle_deck_shuffle<T>(
         let mut rng = rand::thread_rng();
         let mut shuffled = cards.clone();
         shuffled.shuffle(&mut rng);
-
-        println!("shuffled cards: {:?}", shuffled.len());
 
         // once cards shuffled reorder them with animation
         let duration = 75;
@@ -195,7 +191,7 @@ pub fn handle_draw_hand<T>(
         Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
     )>,
 ) where
-    T: Send + Sync + Debug + 'static,
+    T: Send + Clone + Sync + Debug + 'static,
 {
     shuffle.read().for_each(|shuffle| {
         // find global position of hand with player number
@@ -238,7 +234,9 @@ pub fn handle_draw_hand<T>(
         //     Vec3::new(hand_deck_offset.x, -hand_deck_offset.z, hand_deck_offset.y);
 
         // draw the first `num_cards` cards
-        for (i, (entity, _card, transform)) in sorted.iter().take(shuffle.num_cards).enumerate() {
+        for (i, (entity, mut card, transform)) in
+            sorted.iter_mut().take(shuffle.num_cards).enumerate()
+        {
             let initial_translation = transform.translation.clone();
             let initial_rotation = transform.rotation.clone();
             let new_offset = Vec3::new(0.0, i as f32 * 0.01, 0.0);
@@ -330,13 +328,22 @@ pub fn handle_draw_hand<T>(
                 .then(tween6)
                 .then(tween7);
 
+            let card = Card::<T> {
+                pickable: true,
+                transform: Some(Transform::from_translation(
+                    -hand_deck_offset + Vec3::new(i as f32 * 2.6 - DECK_WIDTH / 2.0, 0.0, 0.0),
+                )),
+                data: card.data.clone(),
+            };
             commands
                 .entity(*entity)
                 .insert(Animator::new(seq))
-                .insert(HandArea {
+                .insert(Hand {
                     player: shuffle.player,
                 })
-                .remove::<DeckArea>();
+                .remove::<Deck>()
+                .insert(PickableBundle::default())
+                .insert(card);
         }
     });
 }
