@@ -2,6 +2,10 @@
 name = "bevy_la_mesa"
 version = "0.0.1"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Build card games with Bevy"
+keywords = ["cards", "tabletop", "bevy"]
+repository = "https://github.com/stillonearth/bevy_la_mesa"
 
 [dependencies]
 bevy = "0.14"

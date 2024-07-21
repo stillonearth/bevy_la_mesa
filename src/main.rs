@@ -94,8 +94,8 @@ pub const DECK_WIDTH: f32 = 5.0 * 2.6;
 
 pub fn render_hands(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<StandardMaterial>>,
     plugin_settings: Res<LaMesaPluginSettings>,
 ) {
     commands
@@ -167,7 +167,7 @@ pub fn render_deck(
                 Deck,
                 PbrBundle {
                     mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
-                    transform: transform.clone(),
+                    transform,
                     ..default()
                 },
                 PickableBundle::default(),

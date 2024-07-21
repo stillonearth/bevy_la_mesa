@@ -68,8 +68,8 @@ pub fn handle_card_hover<T>(
                     EaseFunction::QuadraticIn,
                     Duration::from_millis(300),
                     TransformPositionLens {
-                        start: transform.translation.clone(),
-                        end: card.transform.unwrap().translation.clone() + Vec3::new(0., 0.0, 0.5),
+                        start: transform.translation,
+                        end: card.transform.unwrap().translation + Vec3::new(0., 0.0, 0.5),
                     },
                 );
 
@@ -93,8 +93,8 @@ pub fn handle_card_out<T>(
                     EaseFunction::QuadraticIn,
                     Duration::from_millis(300),
                     TransformPositionLens {
-                        start: transform.translation.clone(),
-                        end: card.transform.unwrap().translation.clone(),
+                        start: transform.translation,
+                        end: card.transform.unwrap().translation,
                     },
                 );
 
@@ -136,7 +136,7 @@ pub fn handle_deck_shuffle<T>(
                 random_offset_left
             };
 
-            let initial_translation = transform.translation.clone();
+            let initial_translation = transform.translation;
             let new_offset = Vec3::new(0.0, i as f32 * 0.01, 0.0);
 
             let idle_tween = Tween::new(
@@ -201,8 +201,8 @@ pub fn handle_draw_hand<T>(
             .find(|(_, _, hand)| hand.player == shuffle.player)
             .map(|(_, transform, _)| transform)
             .unwrap();
-        let hand_translation = hand_transform.clone().translation;
-        let hand_rotation = hand_transform.clone().rotation;
+        let hand_translation = hand_transform.translation;
+        let hand_rotation = hand_transform.rotation;
 
         // find position of deck
         let binding = set.p1();
@@ -211,8 +211,8 @@ pub fn handle_draw_hand<T>(
             .find(|(_, _, _deck)| true)
             .map(|(_, transform, _)| transform)
             .unwrap();
-        let deck_translation = deck_transform.clone().translation;
-        let _deck_rotation = deck_transform.clone().rotation;
+        let deck_translation = deck_transform.translation;
+        let _deck_rotation = deck_transform.rotation;
 
         // list all cards whose parent is deck
         let binding = set.p2();
@@ -234,11 +234,11 @@ pub fn handle_draw_hand<T>(
         //     Vec3::new(hand_deck_offset.x, -hand_deck_offset.z, hand_deck_offset.y);
 
         // draw the first `num_cards` cards
-        for (i, (entity, mut card, transform)) in
+        for (i, (entity, card, transform)) in
             sorted.iter_mut().take(shuffle.num_cards).enumerate()
         {
-            let initial_translation = transform.translation.clone();
-            let initial_rotation = transform.rotation.clone();
+            let initial_translation = transform.translation;
+            let initial_rotation = transform.rotation;
             let new_offset = Vec3::new(0.0, i as f32 * 0.01, 0.0);
 
             let idle_tween = Tween::new(
@@ -287,7 +287,7 @@ pub fn handle_draw_hand<T>(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformRotationLens {
-                    start: initial_rotation.clone(),
+                    start: initial_rotation,
                     end: end_rotation,
                 },
             );
