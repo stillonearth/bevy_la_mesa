@@ -1,17 +1,12 @@
-//! A simple 3D scene with light shining over a cube sitting on a plane.
-
-use std::time::Duration;
+pub mod events;
 
 use bevy::{input::common_conditions::input_toggle_active, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mod_picking::{
-    debug::DebugPickingMode,
-    events::*,
-    picking_core::Pickable,
-    prelude::{ListenerInput, On},
-    DefaultPickingPlugins, PickableBundle,
+    debug::DebugPickingMode, events::*, picking_core::Pickable, prelude::On, DefaultPickingPlugins,
+    PickableBundle,
 };
-use bevy_tweening::{lens::*, *};
+use events::*;
 
 #[derive(Component)]
 struct Card {
@@ -38,34 +33,6 @@ fn load_card_materials(
     });
 
     (face_material, back_material)
-}
-
-// Events
-
-#[derive(Event)]
-struct CardHover {
-    pub entity: Entity,
-}
-
-impl From<ListenerInput<Pointer<Over>>> for CardHover {
-    fn from(event: ListenerInput<Pointer<Over>>) -> Self {
-        CardHover {
-            entity: event.target,
-        }
-    }
-}
-
-#[derive(Event)]
-struct CardOut {
-    pub entity: Entity,
-}
-
-impl From<ListenerInput<Pointer<Out>>> for CardOut {
-    fn from(event: ListenerInput<Pointer<Out>>) -> Self {
-        CardOut {
-            entity: event.target,
-        }
-    }
 }
 
 // Main
@@ -183,66 +150,3 @@ fn setup(
             ));
         });
 }
-
-pub fn handle_card_hover(
-    mut commands: Commands,
-    mut hover: EventReader<CardHover>,
-    mut target_commands: Commands,
-    mut query: Query<(Entity, &Card, &mut Transform)>,
-) {
-    hover.read().for_each(|hover| {
-        println!("hovering");
-        if let Ok((_, card, mut transform)) = query.get_mut(hover.entity) {
-            if card.pickable {
-                let tween = Tween::new(
-                    EaseFunction::QuadraticIn,
-                    Duration::from_millis(300),
-                    TransformPositionLens {
-                        start: transform.translation.clone(),
-                        end: card.transform.translation.clone() + Vec3::new(0., 0.0, 0.5),
-                    },
-                );
-
-                commands.entity(hover.entity).insert(Animator::new(tween));
-            }
-        }
-    });
-}
-
-pub fn handle_card_out(
-    mut commands: Commands,
-    mut out: EventReader<CardOut>,
-    mut target_commands: Commands,
-    mut query: Query<(Entity, &Card, &mut Transform)>,
-) {
-    out.read().for_each(|hover| {
-        println!("hovering");
-        if let Ok((_, card, mut transform)) = query.get_mut(hover.entity) {
-            if card.pickable {
-                let tween = Tween::new(
-                    EaseFunction::QuadraticIn,
-                    Duration::from_millis(300),
-                    TransformPositionLens {
-                        start: transform.translation.clone(),
-                        end: card.transform.translation.clone(),
-                    },
-                );
-
-                commands.entity(hover.entity).insert(Animator::new(tween));
-            }
-        }
-    });
-}
-
-// |hover, target_commands| {
-//     hover.for_each(|hover| {
-//         if let Some(card) = target_commands.get_mut::<Card>(hover.entity) {
-//             card.pickable = false;
-//         }
-//     });
-
-//     hover.
-
-//     // tween on hover
-//
-// }
