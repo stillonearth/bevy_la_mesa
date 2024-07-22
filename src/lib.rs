@@ -41,6 +41,7 @@ pub struct Hand {
 #[derive(Default, Resource)]
 pub struct LaMesaPluginSettings<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
     pub num_players: usize,
+    pub back_card_path: String,
     pub deck: Vec<T>,
 }
 
@@ -51,28 +52,24 @@ pub struct LaMesaPlugin<T: Send + Clone + Sync + Debug + CardMetadata + 'static>
 
 impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaPlugin<T> {
     fn build(&self, app: &mut App) {
-        app.insert_resource(LaMesaPluginSettings::<T> {
-            num_players: 1,
-            deck: vec![],
-        })
-        .add_systems(Startup, (render_deck::<T>, render_hands_area::<T>))
-        .add_systems(
-            Update,
-            (
-                handle_card_hover::<T>,
-                handle_card_out::<T>,
-                handle_deck_shuffle::<T>,
-                handle_draw_hand::<T>,
-                handle_card_press::<T>,
-            ),
-        )
-        .add_plugins((DefaultPickingPlugins, TweeningPlugin))
-        .add_event::<CardHover>()
-        .add_event::<CardOut>()
-        .add_event::<CardPress>()
-        .add_event::<DeckShuffle>()
-        .add_event::<DrawHand>()
-        .add_event::<MoveCardToHand>();
+        app.add_systems(Startup, (render_deck::<T>, render_hands_area::<T>))
+            .add_systems(
+                Update,
+                (
+                    handle_card_hover::<T>,
+                    handle_card_out::<T>,
+                    handle_deck_shuffle::<T>,
+                    handle_draw_hand::<T>,
+                    handle_card_press::<T>,
+                ),
+            )
+            .add_plugins((DefaultPickingPlugins, TweeningPlugin))
+            .add_event::<CardHover>()
+            .add_event::<CardOut>()
+            .add_event::<CardPress>()
+            .add_event::<DeckShuffle>()
+            .add_event::<DrawHand>()
+            .add_event::<MoveCardToHand>();
     }
 }
 
@@ -108,8 +105,8 @@ pub fn render_deck<T>(
 {
     // load deck
     let card_deck = plugin_settings.deck.clone();
-    let deck_transform =
-        Transform::IDENTITY.with_rotation(Quat::from_rotation_x(std::f32::consts::PI / 2.0));
+    let deck_transform = Transform::from_translation(Vec3::new(0.0, -0.7, 4.0))
+        .with_rotation(Quat::from_rotation_x(std::f32::consts::PI / 2.0));
 
     commands.spawn((
         TransformBundle {
@@ -128,7 +125,7 @@ pub fn render_deck<T>(
             ..Default::default()
         });
 
-        let face_texture = asset_server.load("card-back1.png");
+        let face_texture = asset_server.load(plugin_settings.back_card_path.clone());
         let back_material = materials.add(StandardMaterial {
             base_color_texture: Some(face_texture.clone()),
             ..Default::default()

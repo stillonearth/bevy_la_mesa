@@ -83,7 +83,7 @@ pub fn handle_card_hover<T>(
                     Duration::from_millis(300),
                     TransformPositionLens {
                         start: transform.translation,
-                        end: card.transform.unwrap().translation + Vec3::new(0., 0.0, 0.5),
+                        end: card.transform.unwrap().translation + Vec3::new(0., 0.5, 0.5),
                     },
                 );
 
