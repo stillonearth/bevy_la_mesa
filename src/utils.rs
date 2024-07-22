@@ -1,8 +1,20 @@
-#[derive(Debug, Clone)]
+use std::fmt::Debug;
+
+use crate::CardMetadata;
+
+#[derive(Default, Clone, Debug)]
 pub struct PokerCard {
     pub value: u8,
     pub suit: String,
     pub filename: String,
+}
+
+impl CardMetadata for PokerCard {
+    type Output = PokerCard;
+
+    fn filename(&self) -> String {
+        self.filename.clone()
+    }
 }
 
 pub fn load_poker_deck() -> Vec<PokerCard> {

@@ -9,10 +9,6 @@ use std::time::Duration;
 use crate::{Card, Deck, DeckArea, Hand, HandArea, DECK_WIDTH};
 
 // Events
-#[derive(Event)]
-pub struct CardHover {
-    pub entity: Entity,
-}
 
 #[derive(Event)]
 pub struct DeckShuffle {
@@ -32,6 +28,11 @@ pub struct DrawHand {
     pub player: usize,
 }
 
+#[derive(Event)]
+pub struct CardHover {
+    pub entity: Entity,
+}
+
 impl From<ListenerInput<Pointer<Over>>> for CardHover {
     fn from(event: ListenerInput<Pointer<Over>>) -> Self {
         CardHover {
@@ -49,6 +50,19 @@ impl From<ListenerInput<Pointer<Out>>> for CardOut {
     fn from(event: ListenerInput<Pointer<Out>>) -> Self {
         CardOut {
             entity: event.target,
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct CardPress {
+    pub card_entity: Entity,
+}
+
+impl From<ListenerInput<Pointer<Down>>> for CardPress {
+    fn from(event: ListenerInput<Pointer<Down>>) -> Self {
+        CardPress {
+            card_entity: event.target,
         }
     }
 }
@@ -111,7 +125,7 @@ pub fn handle_deck_shuffle<T>(
 ) where
     T: Send + Clone + Sync + Debug + 'static,
 {
-    shuffle.read().for_each(|shuffle| {
+    shuffle.read().for_each(|_shuffle| {
         // list all cards whose parent is deck
         let cards: Vec<(Entity, &Card<T>, &Transform)> = query_cards
             .iter()
@@ -234,8 +248,7 @@ pub fn handle_draw_hand<T>(
         //     Vec3::new(hand_deck_offset.x, -hand_deck_offset.z, hand_deck_offset.y);
 
         // draw the first `num_cards` cards
-        for (i, (entity, card, transform)) in
-            sorted.iter_mut().take(shuffle.num_cards).enumerate()
+        for (i, (entity, card, transform)) in sorted.iter_mut().take(shuffle.num_cards).enumerate()
         {
             let initial_translation = transform.translation;
             let initial_rotation = transform.rotation;
@@ -335,6 +348,7 @@ pub fn handle_draw_hand<T>(
                 )),
                 data: card.data.clone(),
             };
+
             commands
                 .entity(*entity)
                 .insert(Animator::new(seq))
@@ -348,20 +362,13 @@ pub fn handle_draw_hand<T>(
     });
 }
 
-// pub fn handle_move_card_to_hand(
-//     mut commands: Commands,
-//     mut move_card: EventReader<MoveCardToHand>,
-//     mut query: Query<(Entity, &Card<()>, &Transform)>,
-// ) {
-//     move_card.read().for_each(|move_card| {
-//         if let Ok((entity, mut card, transform)) = query.get(move_card.card_entity) {
-
-//             // let mut new_transform = transform.clone();
-//             // new_transform.translation = Vec3::new(0.0, 0.0, 0.0);
-//             // new_transform.rotation = Quat::IDENTITY;
-
-//             // commands.entity(entity).insert(new_transform);
-//             // commands.entity(entity).remove::<Parent>();
-//         }
-//     });
-// }
+pub fn handle_card_press<T>(
+    mut card_press: EventReader<CardPress>,
+    _query_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
+) where
+    T: Send + Clone + Sync + Debug + 'static,
+{
+    for event in card_press.read() {
+        println!("Card Pressed: {:?}", event.card_entity);
+    }
+}
