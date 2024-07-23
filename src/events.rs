@@ -6,9 +6,12 @@ use rand::prelude::*;
 use std::fmt::Debug;
 use std::time::Duration;
 
-use crate::{Card, Deck, DeckArea, Hand, HandArea, DECK_WIDTH};
+use crate::{Card, CardMetadata, Deck, DeckArea, Hand, HandArea, LaMesaPluginSettings, DECK_WIDTH};
 
 // Events
+
+#[derive(Event)]
+pub struct RenderDeck;
 
 #[derive(Event)]
 pub struct DeckShuffle {
@@ -71,19 +74,20 @@ impl From<ListenerInput<Pointer<Down>>> for CardPress {
 pub fn handle_card_hover<T>(
     mut commands: Commands,
     mut hover: EventReader<CardHover>,
-    mut query: Query<(Entity, &Card<T>, &mut Transform)>,
+    mut query: Query<(Entity, &mut Card<T>, &mut Transform)>,
 ) where
     T: Send + Sync + Debug + 'static,
 {
     hover.read().for_each(|hover| {
-        if let Ok((_, card, transform)) = query.get_mut(hover.entity) {
+        if let Ok((_, mut card, transform)) = query.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
+                card.transform = Some(transform.clone());
                 let tween = Tween::new(
                     EaseFunction::QuadraticIn,
                     Duration::from_millis(300),
                     TransformPositionLens {
                         start: transform.translation,
-                        end: card.transform.unwrap().translation + Vec3::new(0., 0.5, 0.5),
+                        end: card.transform.unwrap().translation + Vec3::new(0., 0.7, 0.7),
                     },
                 );
 
@@ -139,8 +143,8 @@ pub fn handle_deck_shuffle<T>(
 
         // once cards shuffled reorder them with animation
         let duration = 75;
-        let random_offset_right = Vec3::new(3.0, -0.0, 0.0);
-        let random_offset_left = Vec3::new(-3.0, -0.0, 0.0);
+        let random_offset_right = Vec3::new(2.6, -0.0, 0.0);
+        let random_offset_left = Vec3::new(-2.6, -0.0, 0.0);
 
         for (i, (entity, _, transform)) in shuffled.iter().enumerate() {
             // choose random 3 to the left or 3 to the right
@@ -151,7 +155,14 @@ pub fn handle_deck_shuffle<T>(
             };
 
             let initial_translation = transform.translation;
-            let new_offset = Vec3::new(0.0, i as f32 * 0.01, 0.0);
+            let new_offset = Vec3::new(
+                initial_translation.x,
+                i as f32 * 0.01,
+                initial_translation.z,
+            );
+
+            let mut initial_translation_no_y = initial_translation.clone();
+            initial_translation_no_y.y = 0.0;
 
             let idle_tween = Tween::new(
                 EaseFunction::QuadraticIn,
@@ -176,7 +187,9 @@ pub fn handle_deck_shuffle<T>(
                 Duration::from_millis(duration),
                 TransformPositionLens {
                     start: initial_translation + random_offset,
-                    end: random_offset + Vec3::new(0.0, i as f32 * 0.01, 0.0),
+                    end: initial_translation_no_y
+                        + random_offset
+                        + Vec3::new(0.0, i as f32 * 0.01, 0.0),
                 },
             );
 
@@ -184,7 +197,9 @@ pub fn handle_deck_shuffle<T>(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
-                    start: initial_translation + random_offset + new_offset,
+                    start: initial_translation_no_y
+                        + random_offset
+                        + Vec3::new(0.0, i as f32 * 0.01, 0.0),
                     end: new_offset,
                 },
             );
@@ -226,6 +241,7 @@ pub fn handle_draw_hand<T>(
             .map(|(_, transform, _)| transform)
             .unwrap();
         let deck_translation = deck_transform.translation;
+        // deck_translation.z = 0.0;
         let _deck_rotation = deck_transform.rotation;
 
         // list all cards whose parent is deck
@@ -237,20 +253,19 @@ pub fn handle_draw_hand<T>(
 
         // sort cards by z-position
         let mut sorted = cards.clone();
-        sorted.sort_by(|a, b| a.2.translation.z.partial_cmp(&b.2.translation.z).unwrap());
+        sorted.sort_by(|a, b| a.2.translation.y.partial_cmp(&b.2.translation.y).unwrap());
 
         let duration = 75;
-        let offset = Vec3::new(-3.0, -0.0, 0.0);
+        let offset = Vec3::new(-4.0, -0.0, 0.0);
 
         let hand_deck_offset = deck_translation - hand_translation;
-        // rotate hand deck offset by 90 degrees
-        // let hand_deck_offset =
-        //     Vec3::new(hand_deck_offset.x, -hand_deck_offset.z, hand_deck_offset.y);
 
         // draw the first `num_cards` cards
         for (i, (entity, card, transform)) in sorted.iter_mut().take(shuffle.num_cards).enumerate()
         {
             let initial_translation = transform.translation;
+
+            println!("initial_translation: {:?}", initial_translation);
             let initial_rotation = transform.rotation;
             let new_offset = Vec3::new(0.0, i as f32 * 0.01, 0.0);
 
@@ -263,21 +278,25 @@ pub fn handle_draw_hand<T>(
                 },
             );
 
+            let slide = initial_translation + offset;
             let tween1: Tween<Transform> = Tween::new(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
                     start: initial_translation,
-                    end: initial_translation + offset,
+                    end: slide,
                 },
             );
+
+            let mut slide_flat = slide.clone();
+            slide_flat.y = 0.0;
 
             let tween2 = Tween::new(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
-                    start: initial_translation + offset,
-                    end: offset + new_offset,
+                    start: slide,
+                    end: slide_flat + new_offset,
                 },
             );
 
@@ -285,8 +304,8 @@ pub fn handle_draw_hand<T>(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis((duration * 4) * (shuffle.num_cards - i) as u64),
                 TransformPositionLens {
-                    start: offset + new_offset,
-                    end: offset + new_offset,
+                    start: slide_flat + new_offset,
+                    end: slide_flat + new_offset,
                 },
             );
 
@@ -309,8 +328,8 @@ pub fn handle_draw_hand<T>(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
-                    start: offset + new_offset,
-                    end: offset + new_offset - hand_deck_offset,
+                    start: slide_flat + new_offset,
+                    end: slide_flat + new_offset - hand_deck_offset,
                 },
             );
 
@@ -327,8 +346,8 @@ pub fn handle_draw_hand<T>(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
-                    start: offset + new_offset - hand_deck_offset,
-                    end: -hand_deck_offset + Vec3::new(i as f32 * 2.6 - DECK_WIDTH / 2.0, 0.0, 0.0),
+                    start: slide_flat + new_offset - hand_deck_offset,
+                    end: hand_translation + Vec3::new(i as f32 * 2.6 - DECK_WIDTH / 2.0, 0.0, 0.0),
                 },
             );
 
@@ -370,5 +389,108 @@ pub fn handle_card_press<T>(
 {
     for event in card_press.read() {
         println!("Card Pressed: {:?}", event.card_entity);
+    }
+}
+
+pub fn handle_render_deck<T>(
+    mut commands: Commands,
+    deck: Query<(&Transform, &DeckArea)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+    plugin_settings: Res<LaMesaPluginSettings<T>>,
+    mut er_render_deck: EventReader<RenderDeck>,
+) where
+    T: Send + Clone + Sync + Debug + CardMetadata + 'static,
+{
+    for _render in er_render_deck.read() {
+        // load deck
+        let card_deck = plugin_settings.deck.clone();
+        let deck_translation = deck.iter().next().unwrap().0.clone().translation;
+
+        for (i, card) in card_deck.iter().enumerate() {
+            let face_texture = asset_server.load(card.clone().filename());
+            let face_material = materials.add(StandardMaterial {
+                base_color_texture: Some(face_texture.clone()),
+                ..Default::default()
+            });
+
+            let face_texture = asset_server.load(plugin_settings.back_card_path.clone());
+            let back_material = materials.add(StandardMaterial {
+                base_color_texture: Some(face_texture.clone()),
+                ..Default::default()
+            });
+
+            let transform = Transform::from_translation(
+                deck_translation + Vec3::new(0.0, 0.01 * (i as f32), 0.0),
+            )
+            .with_rotation(
+                Quat::from_rotation_x(std::f32::consts::PI)
+                    * Quat::from_rotation_y(std::f32::consts::PI),
+            );
+            // .with_rotation(
+            //     Quat::from_rotation_x(std::f32::consts::PI / 2.0)
+            //         * Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)
+            //         * Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)
+            //         * Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+            // );
+
+            // Draw Deck
+            commands
+                .spawn((
+                    Name::new("Card"),
+                    Card {
+                        pickable: false,
+                        transform: None,
+                        data: card.clone(),
+                    },
+                    Deck,
+                    PbrBundle {
+                        mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
+                        transform,
+                        ..default()
+                    },
+                    PickableBundle::default(),
+                    On::<Pointer<Over>>::send_event::<CardHover>(),
+                    On::<Pointer<Down>>::send_event::<CardPress>(),
+                    On::<Pointer<Out>>::send_event::<CardOut>(),
+                ))
+                .with_children(|parent| {
+                    // face
+                    parent.spawn((
+                        PbrBundle {
+                            mesh: meshes
+                                .add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
+                            material: face_material,
+                            ..default()
+                        },
+                        PickableBundle {
+                            pickable: Pickable {
+                                is_hoverable: false,
+                                ..default()
+                            },
+                            ..default()
+                        },
+                    ));
+                    // back
+                    parent.spawn((
+                        PbrBundle {
+                            mesh: meshes
+                                .add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
+                            material: back_material,
+                            transform: Transform::IDENTITY
+                                .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
+                            ..default()
+                        },
+                        PickableBundle {
+                            pickable: Pickable {
+                                is_hoverable: false,
+                                ..default()
+                            },
+                            ..default()
+                        },
+                    ));
+                });
+        }
     }
 }
