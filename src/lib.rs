@@ -2,9 +2,7 @@ pub mod events;
 pub mod utils;
 
 use bevy::prelude::*;
-use bevy_mod_picking::{
-    events::*, picking_core::Pickable, prelude::On, DefaultPickingPlugins, PickableBundle,
-};
+use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_tweening::TweeningPlugin;
 use events::*;
 use std::{fmt::Debug, marker::PhantomData};
@@ -22,11 +20,26 @@ pub struct Card<CardType> {
     pub data: CardType,
 }
 
+#[derive(Component, PartialEq, PartialOrd)]
+pub struct Chip<ChipType> {
+    pub data: ChipType,
+}
+
 #[derive(Component)]
 pub struct DeckArea;
 
 #[derive(Component)]
 pub struct Deck;
+
+#[derive(Component, Default)]
+pub struct PlayArea {
+    pub marker: usize,
+}
+
+#[derive(Component, Default)]
+pub struct ChipArea {
+    pub marker: usize,
+}
 
 #[derive(Component)]
 pub struct HandArea {
@@ -36,6 +49,11 @@ pub struct HandArea {
 #[derive(Component)]
 pub struct Hand {
     pub player: usize,
+}
+
+#[derive(Component)]
+pub struct CardOnTable {
+    pub marker: usize,
 }
 
 #[derive(Default, Resource)]
@@ -60,7 +78,7 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
                     handle_card_out::<T>,
                     handle_deck_shuffle::<T>,
                     handle_draw_hand::<T>,
-                    handle_card_press::<T>,
+                    handle_place_card_on_table::<T>,
                     handle_render_deck::<T>,
                 ),
             )
@@ -70,8 +88,8 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
             .add_event::<CardPress>()
             .add_event::<DeckShuffle>()
             .add_event::<DrawHand>()
-            .add_event::<MoveCardToHand>()
-            .add_event::<RenderDeck>();
+            .add_event::<RenderDeck>()
+            .add_event::<PlaceCardOnTable>();
     }
 }
 

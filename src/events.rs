@@ -6,7 +6,10 @@ use rand::prelude::*;
 use std::fmt::Debug;
 use std::time::Duration;
 
-use crate::{Card, CardMetadata, Deck, DeckArea, Hand, HandArea, LaMesaPluginSettings, DECK_WIDTH};
+use crate::{
+    Card, CardMetadata, CardOnTable, Deck, DeckArea, Hand, HandArea, LaMesaPluginSettings,
+    PlayArea, DECK_WIDTH,
+};
 
 // Events
 
@@ -19,9 +22,9 @@ pub struct DeckShuffle {
 }
 
 #[derive(Event)]
-pub struct MoveCardToHand {
+pub struct PlaceCardOnTable {
     pub card_entity: Entity,
-    pub player: usize,
+    pub marker: usize,
 }
 
 #[derive(Event)]
@@ -74,14 +77,14 @@ impl From<ListenerInput<Pointer<Down>>> for CardPress {
 pub fn handle_card_hover<T>(
     mut commands: Commands,
     mut hover: EventReader<CardHover>,
-    mut query: Query<(Entity, &mut Card<T>, &mut Transform)>,
+    mut query: Query<(Entity, &mut Card<T>, &Hand, &mut Transform)>,
 ) where
     T: Send + Sync + Debug + 'static,
 {
     hover.read().for_each(|hover| {
-        if let Ok((_, mut card, transform)) = query.get_mut(hover.entity) {
+        if let Ok((_, card, _, transform)) = query.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
-                card.transform = Some(transform.clone());
+                // card.transform = Some(transform.clone());
                 let tween = Tween::new(
                     EaseFunction::QuadraticIn,
                     Duration::from_millis(300),
@@ -100,12 +103,12 @@ pub fn handle_card_hover<T>(
 pub fn handle_card_out<T>(
     mut commands: Commands,
     mut out: EventReader<CardOut>,
-    mut query: Query<(Entity, &Card<T>, &mut Transform)>,
+    mut query: Query<(Entity, &Card<T>, &Hand, &mut Transform)>,
 ) where
     T: Send + Sync + Debug + 'static,
 {
     out.read().for_each(|hover| {
-        if let Ok((_, card, transform)) = query.get_mut(hover.entity) {
+        if let Ok((_, card, _, transform)) = query.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 let tween = Tween::new(
                     EaseFunction::QuadraticIn,
@@ -126,6 +129,7 @@ pub fn handle_deck_shuffle<T>(
     mut commands: Commands,
     mut shuffle: EventReader<DeckShuffle>,
     query_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
+    query_deck: Query<(Entity, &Transform, &DeckArea), Without<Deck>>,
 ) where
     T: Send + Clone + Sync + Debug + 'static,
 {
@@ -143,8 +147,11 @@ pub fn handle_deck_shuffle<T>(
 
         // once cards shuffled reorder them with animation
         let duration = 75;
-        let random_offset_right = Vec3::new(2.6, -0.0, 0.0);
-        let random_offset_left = Vec3::new(-2.6, -0.0, 0.0);
+        let random_offset_right = Vec3::new(3.05, -0.0, 0.0);
+        let random_offset_left = Vec3::new(-3.05, -0.0, 0.0);
+
+        let mut deck_translation = query_deck.iter().next().unwrap().1.translation;
+        deck_translation.y = 0.0;
 
         for (i, (entity, _, transform)) in shuffled.iter().enumerate() {
             // choose random 3 to the left or 3 to the right
@@ -155,14 +162,7 @@ pub fn handle_deck_shuffle<T>(
             };
 
             let initial_translation = transform.translation;
-            let new_offset = Vec3::new(
-                initial_translation.x,
-                i as f32 * 0.01,
-                initial_translation.z,
-            );
-
-            let mut initial_translation_no_y = initial_translation.clone();
-            initial_translation_no_y.y = 0.0;
+            let new_offset = Vec3::new(deck_translation.x, i as f32 * 0.01, deck_translation.z);
 
             let idle_tween = Tween::new(
                 EaseFunction::QuadraticIn,
@@ -187,9 +187,7 @@ pub fn handle_deck_shuffle<T>(
                 Duration::from_millis(duration),
                 TransformPositionLens {
                     start: initial_translation + random_offset,
-                    end: initial_translation_no_y
-                        + random_offset
-                        + Vec3::new(0.0, i as f32 * 0.01, 0.0),
+                    end: deck_translation + random_offset + Vec3::new(0.0, i as f32 * 0.01, 0.0),
                 },
             );
 
@@ -197,9 +195,7 @@ pub fn handle_deck_shuffle<T>(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
-                    start: initial_translation_no_y
-                        + random_offset
-                        + Vec3::new(0.0, i as f32 * 0.01, 0.0),
+                    start: deck_translation + random_offset + Vec3::new(0.0, i as f32 * 0.01, 0.0),
                     end: new_offset,
                 },
             );
@@ -209,6 +205,66 @@ pub fn handle_deck_shuffle<T>(
             commands.entity(*entity).insert(Animator::new(seq));
         }
     });
+}
+
+pub fn handle_place_card_on_table<T>(
+    mut commands: Commands,
+    mut place_card_on_table: EventReader<PlaceCardOnTable>,
+    mut set: ParamSet<(
+        Query<(Entity, &mut Transform, &PlayArea)>,
+        Query<(Entity, &Card<T>, &mut Transform, &Hand)>,
+    )>,
+) where
+    T: Send + Clone + Sync + Debug + 'static,
+{
+    for event in place_card_on_table.read() {
+        let binding = set.p0();
+        let play_area_transform = binding
+            .iter()
+            .find(|(_, _, play_area)| play_area.marker == event.marker)
+            .map(|(_, transform, _)| transform)
+            .unwrap();
+        let play_area_translation = play_area_transform.translation;
+        let play_area_rotation = play_area_transform.rotation;
+
+        let binding = set.p1();
+        let card_transform = binding
+            .get(event.card_entity)
+            .map(|(_, _, transform, _)| transform)
+            .unwrap();
+        let card_translation = card_transform.translation;
+        let card_rotation = card_transform.rotation;
+
+        let duration = 75;
+
+        let tween0 = Tween::new(
+            EaseFunction::QuadraticIn,
+            Duration::from_millis(duration),
+            TransformRotationLens {
+                start: card_rotation,
+                end: play_area_rotation,
+            },
+        );
+
+        let tween1 = Tween::new(
+            EaseFunction::QuadraticIn,
+            Duration::from_millis(duration),
+            TransformPositionLens {
+                start: card_translation,
+                end: play_area_translation,
+            },
+        );
+
+        let seq = tween0.then(tween1);
+
+        commands
+            .entity(event.card_entity)
+            .remove::<Hand>()
+            .insert(CardOnTable {
+                marker: event.marker,
+            })
+            .insert(Animator::new(seq));
+    }
 }
 
 pub fn handle_draw_hand<T>(
@@ -256,7 +312,7 @@ pub fn handle_draw_hand<T>(
         sorted.sort_by(|a, b| a.2.translation.y.partial_cmp(&b.2.translation.y).unwrap());
 
         let duration = 75;
-        let offset = Vec3::new(-4.0, -0.0, 0.0);
+        let offset = Vec3::new(3.05, -0.0, 0.0);
 
         let hand_deck_offset = deck_translation - hand_translation;
 
@@ -265,7 +321,6 @@ pub fn handle_draw_hand<T>(
         {
             let initial_translation = transform.translation;
 
-            println!("initial_translation: {:?}", initial_translation);
             let initial_rotation = transform.rotation;
             let new_offset = Vec3::new(0.0, i as f32 * 0.01, 0.0);
 
@@ -363,7 +418,7 @@ pub fn handle_draw_hand<T>(
             let card = Card::<T> {
                 pickable: true,
                 transform: Some(Transform::from_translation(
-                    -hand_deck_offset + Vec3::new(i as f32 * 2.6 - DECK_WIDTH / 2.0, 0.0, 0.0),
+                    hand_translation + Vec3::new(i as f32 * 2.6 - DECK_WIDTH / 2.0, 0.0, 0.0),
                 )),
                 data: card.data.clone(),
             };
@@ -379,17 +434,6 @@ pub fn handle_draw_hand<T>(
                 .insert(card);
         }
     });
-}
-
-pub fn handle_card_press<T>(
-    mut card_press: EventReader<CardPress>,
-    _query_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
-) where
-    T: Send + Clone + Sync + Debug + 'static,
-{
-    for event in card_press.read() {
-        println!("Card Pressed: {:?}", event.card_entity);
-    }
 }
 
 pub fn handle_render_deck<T>(
@@ -428,12 +472,6 @@ pub fn handle_render_deck<T>(
                 Quat::from_rotation_x(std::f32::consts::PI)
                     * Quat::from_rotation_y(std::f32::consts::PI),
             );
-            // .with_rotation(
-            //     Quat::from_rotation_x(std::f32::consts::PI / 2.0)
-            //         * Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)
-            //         * Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)
-            //         * Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
-            // );
 
             // Draw Deck
             commands
