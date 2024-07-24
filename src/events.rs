@@ -25,6 +25,7 @@ pub struct DeckShuffle {
 pub struct PlaceCardOnTable {
     pub card_entity: Entity,
     pub marker: usize,
+    pub player: usize,
 }
 
 #[derive(Event)]
@@ -147,8 +148,8 @@ pub fn handle_deck_shuffle<T>(
 
         // once cards shuffled reorder them with animation
         let duration = 75;
-        let random_offset_right = Vec3::new(3.05, -0.0, 0.0);
-        let random_offset_left = Vec3::new(-3.05, -0.0, 0.0);
+        let random_offset_right = Vec3::new(3.6, -0.0, 0.0);
+        let random_offset_left = Vec3::new(-3.6, -0.0, 0.0);
 
         let mut deck_translation = query_deck.iter().next().unwrap().1.translation;
         deck_translation.y = 0.0;
@@ -262,6 +263,7 @@ pub fn handle_place_card_on_table<T>(
             .remove::<Hand>()
             .insert(CardOnTable {
                 marker: event.marker,
+                player: event.player,
             })
             .insert(Animator::new(seq));
     }
@@ -343,7 +345,7 @@ pub fn handle_draw_hand<T>(
                 },
             );
 
-            let mut slide_flat = slide.clone();
+            let mut slide_flat = slide;
             slide_flat.y = 0.0;
 
             let tween2 = Tween::new(
@@ -450,7 +452,9 @@ pub fn handle_render_deck<T>(
     for _render in er_render_deck.read() {
         // load deck
         let card_deck = plugin_settings.deck.clone();
-        let deck_translation = deck.iter().next().unwrap().0.clone().translation;
+        let deck_transform = *deck.iter().next().unwrap().0;
+        let deck_translation = deck_transform.translation;
+        let deck_rotation = deck_transform.rotation;
 
         for (i, card) in card_deck.iter().enumerate() {
             let face_texture = asset_server.load(card.clone().filename());
@@ -469,7 +473,8 @@ pub fn handle_render_deck<T>(
                 deck_translation + Vec3::new(0.0, 0.01 * (i as f32), 0.0),
             )
             .with_rotation(
-                Quat::from_rotation_x(std::f32::consts::PI)
+                deck_rotation
+                    * Quat::from_rotation_x(std::f32::consts::PI)
                     * Quat::from_rotation_y(std::f32::consts::PI),
             );
 

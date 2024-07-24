@@ -34,6 +34,7 @@ pub struct Deck;
 #[derive(Component, Default)]
 pub struct PlayArea {
     pub marker: usize,
+    pub player: usize,
 }
 
 #[derive(Component, Default)]
@@ -54,6 +55,7 @@ pub struct Hand {
 #[derive(Component)]
 pub struct CardOnTable {
     pub marker: usize,
+    pub player: usize,
 }
 
 #[derive(Default, Resource)]
@@ -70,7 +72,7 @@ pub struct LaMesaPlugin<T: Send + Clone + Sync + Debug + CardMetadata + 'static>
 
 impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaPlugin<T> {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, (handle_render_deck::<T>, render_hands_area::<T>))
+        app.add_systems(Startup, handle_render_deck::<T>)
             .add_systems(
                 Update,
                 (
@@ -94,18 +96,3 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
 }
 
 pub const DECK_WIDTH: f32 = 5.0 * 2.6;
-
-pub fn render_hands_area<T>(mut commands: Commands)
-where
-    T: Send + Clone + Sync + Debug + 'static,
-{
-    commands.spawn((
-        Name::new("HandArea"),
-        TransformBundle {
-            local: Transform::from_translation(Vec3::new(0.0, 0.0, 3.7))
-                .with_rotation(Quat::from_rotation_x(std::f32::consts::PI / 4.0)),
-            ..default()
-        },
-        HandArea { player: 1 },
-    ));
-}
