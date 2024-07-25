@@ -26,10 +26,14 @@ pub struct Chip<ChipType> {
 }
 
 #[derive(Component)]
-pub struct DeckArea;
+pub struct DeckArea {
+    pub marker: usize,
+}
 
 #[derive(Component)]
-pub struct Deck;
+pub struct Deck {
+    pub marker: usize,
+}
 
 #[derive(Component, Default)]
 pub struct PlayArea {
@@ -40,6 +44,7 @@ pub struct PlayArea {
 #[derive(Component, Default)]
 pub struct ChipArea {
     pub marker: usize,
+    pub player: usize,
 }
 
 #[derive(Component)]
@@ -81,6 +86,7 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
                     handle_deck_shuffle::<T>,
                     handle_draw_hand::<T>,
                     handle_place_card_on_table::<T>,
+                    handle_place_card_off_table::<T>,
                     handle_render_deck::<T>,
                 ),
             )
@@ -91,7 +97,8 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
             .add_event::<DeckShuffle>()
             .add_event::<DrawHand>()
             .add_event::<RenderDeck>()
-            .add_event::<PlaceCardOnTable>();
+            .add_event::<PlaceCardOnTable>()
+            .add_event::<PlaceCardOffTable>();
     }
 }
 

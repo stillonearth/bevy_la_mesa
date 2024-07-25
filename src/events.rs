@@ -29,6 +29,12 @@ pub struct PlaceCardOnTable {
 }
 
 #[derive(Event)]
+pub struct PlaceCardOffTable {
+    pub card_entity: Entity,
+    pub deck_marker: usize,
+}
+
+#[derive(Event)]
 pub struct DrawHand {
     pub deck_entity: Entity,
     pub num_cards: usize,
@@ -83,7 +89,7 @@ pub fn handle_card_hover<T>(
     T: Send + Sync + Debug + 'static,
 {
     hover.read().for_each(|hover| {
-        if let Ok((_, card, _, transform)) = query.get_mut(hover.entity) {
+        if let Ok((_, card, hand, transform)) = query.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 // card.transform = Some(transform.clone());
                 let tween = Tween::new(
@@ -91,7 +97,11 @@ pub fn handle_card_hover<T>(
                     Duration::from_millis(300),
                     TransformPositionLens {
                         start: transform.translation,
-                        end: card.transform.unwrap().translation + Vec3::new(0., 0.7, 0.7),
+                        end: card.transform.unwrap().translation
+                            + match hand.player {
+                                1 => Vec3::new(0., 0.7, 0.7),
+                                _ => Vec3::new(0., 0.7, 0.0),
+                            },
                     },
                 );
 
@@ -222,9 +232,15 @@ pub fn handle_place_card_on_table<T>(
         let binding = set.p0();
         let play_area_transform = binding
             .iter()
-            .find(|(_, _, play_area)| play_area.marker == event.marker)
-            .map(|(_, transform, _)| transform)
-            .unwrap();
+            .find(|(_, _, play_area)| {
+                play_area.marker == event.marker && play_area.player == event.player
+            })
+            .map(|(_, transform, _)| transform);
+
+        if play_area_transform.is_none() {
+            continue;
+        }
+        let play_area_transform = play_area_transform.unwrap();
         let play_area_translation = play_area_transform.translation;
         let play_area_rotation = play_area_transform.rotation;
 
@@ -269,9 +285,137 @@ pub fn handle_place_card_on_table<T>(
     }
 }
 
+pub fn handle_place_card_off_table<T>(
+    mut commands: Commands,
+    mut place_card_off_table: EventReader<PlaceCardOffTable>,
+    mut set: ParamSet<(
+        Query<(Entity, &mut Transform, &CardOnTable, &Card<T>)>,
+        Query<(Entity, &mut Transform, &DeckArea)>,
+        Query<(Entity, &mut Transform, &Deck)>,
+    )>,
+) where
+    T: Send + Clone + Sync + Debug + 'static,
+{
+    let duration = 75;
+    for event in place_card_off_table.read() {
+        let binding = set.p0();
+        let card_transform = binding
+            .get(event.card_entity)
+            .map(|(_, transform, _, _)| transform)
+            .unwrap();
+
+        let card_translation = card_transform.translation;
+        let card_rotation = card_transform.rotation;
+
+        // get highest card on deck
+        let binding = set.p1();
+        let deck_transform = binding
+            .iter()
+            .filter(|(_, _, deck)| deck.marker == event.deck_marker)
+            .max_by_key(|(_, transform, _)| (transform.translation.y * 100.0) as usize)
+            .unwrap()
+            .1;
+        let deck_translation = deck_transform.translation;
+        let deck_rotation = deck_transform.rotation;
+
+        let binding = set.p2();
+        let number_cards_on_deck = binding
+            .iter()
+            .filter(|(_, _, deck)| deck.marker == event.deck_marker)
+            .count();
+
+        let final_translation =
+            deck_translation + Vec3::new(0.0, number_cards_on_deck as f32 * 0.01, 0.0);
+
+        let tween0 = Tween::new(
+            EaseFunction::QuadraticIn,
+            Duration::from_millis(duration),
+            TransformRotationLens {
+                start: card_rotation,
+                end: deck_rotation * Quat::from_rotation_x(std::f32::consts::PI),
+            },
+        );
+
+        let tween1 = Tween::new(
+            EaseFunction::QuadraticIn,
+            Duration::from_millis(duration),
+            TransformPositionLens {
+                start: card_translation,
+                end: final_translation,
+            },
+        );
+
+        let seq = tween0.then(tween1);
+
+        commands
+            .entity(event.card_entity)
+            .remove::<CardOnTable>()
+            .insert(Deck {
+                marker: event.deck_marker,
+            })
+            .insert(Animator::new(seq));
+    }
+
+    // for event in place_card_off_table.read() {
+    //     let binding = set.p0();
+    //     let play_area_transform = binding
+    //         .iter()
+    //         .find(|(_, _, play_area)| {
+    //             play_area.marker == event.marker && play_area.player == event.player
+    //         })
+    //         .map(|(_, transform, _)| transform);
+
+    //     if play_area_transform.is_none() {
+    //         continue;
+    //     }
+    //     let play_area_transform = play_area_transform.unwrap();
+    //     let play_area_translation = play_area_transform.translation;
+    //     let play_area_rotation = play_area_transform.rotation;
+
+    //     let binding = set.p1();
+    //     let card_transform = binding
+    //         .get(event.card_entity)
+    //         .map(|(_, _, transform, _)| transform)
+    //         .unwrap();
+    //     let card_translation = card_transform.translation;
+    //     let card_rotation = card_transform.rotation;
+
+    //     let duration = 75;
+
+    //     let tween0 = Tween::new(
+    //         EaseFunction::QuadraticIn,
+    //         Duration::from_millis(duration),
+    //         TransformRotationLens {
+    //             start: card_rotation,
+    //             end: play_area_rotation,
+    //         },
+    //     );
+
+    //     let tween1 = Tween::new(
+    //         EaseFunction::QuadraticIn,
+    //         Duration::from_millis(duration),
+    //         TransformPositionLens {
+    //             start: card_translation,
+    //             end: play_area_translation,
+    //         },
+    //     );
+
+    //     let seq = tween0.then(tween1);
+
+    //     commands
+    //         .entity(event.card_entity)
+    //         .remove::<Hand>()
+    //         .insert(CardOnTable {
+    //             marker: event.marker,
+    //             player: event.player,
+    //         })
+    //         .insert(Animator::new(seq));
+    // }
+}
+
 pub fn handle_draw_hand<T>(
     mut commands: Commands,
-    mut shuffle: EventReader<DrawHand>,
+    mut er_draw_hand: EventReader<DrawHand>,
     mut set: ParamSet<(
         Query<(Entity, &mut Transform, &HandArea)>,
         Query<(Entity, &mut Transform, &DeckArea)>,
@@ -280,12 +424,12 @@ pub fn handle_draw_hand<T>(
 ) where
     T: Send + Clone + Sync + Debug + 'static,
 {
-    shuffle.read().for_each(|shuffle| {
+    er_draw_hand.read().for_each(|draw| {
         // find global position of hand with player number
         let binding = set.p0();
         let hand_transform = binding
             .iter()
-            .find(|(_, _, hand)| hand.player == shuffle.player)
+            .find(|(_, _, hand)| hand.player == draw.player)
             .map(|(_, transform, _)| transform)
             .unwrap();
         let hand_translation = hand_transform.translation;
@@ -293,11 +437,7 @@ pub fn handle_draw_hand<T>(
 
         // find position of deck
         let binding = set.p1();
-        let deck_transform = binding
-            .iter()
-            .find(|(_, _, _deck)| true)
-            .map(|(_, transform, _)| transform)
-            .unwrap();
+        let deck_transform = binding.get(draw.deck_entity).unwrap().1;
         let deck_translation = deck_transform.translation;
         // deck_translation.z = 0.0;
         let _deck_rotation = deck_transform.rotation;
@@ -314,13 +454,12 @@ pub fn handle_draw_hand<T>(
         sorted.sort_by(|a, b| a.2.translation.y.partial_cmp(&b.2.translation.y).unwrap());
 
         let duration = 75;
-        let offset = Vec3::new(3.05, -0.0, 0.0);
+        let offset = Vec3::new(3.6, -0.0, 0.0);
 
         let hand_deck_offset = deck_translation - hand_translation;
 
         // draw the first `num_cards` cards
-        for (i, (entity, card, transform)) in sorted.iter_mut().take(shuffle.num_cards).enumerate()
-        {
+        for (i, (entity, card, transform)) in sorted.iter_mut().take(draw.num_cards).enumerate() {
             let initial_translation = transform.translation;
 
             let initial_rotation = transform.rotation;
@@ -359,7 +498,7 @@ pub fn handle_draw_hand<T>(
 
             let tween3 = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis((duration * 4) * (shuffle.num_cards - i) as u64),
+                Duration::from_millis((duration * 4) * (draw.num_cards - i) as u64),
                 TransformPositionLens {
                     start: slide_flat + new_offset,
                     end: slide_flat + new_offset,
@@ -367,9 +506,12 @@ pub fn handle_draw_hand<T>(
             );
 
             // rotate angle depends on who player is
-            let end_rotation = match shuffle.player {
+            let end_rotation = match draw.player {
                 1 => Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
-                _ => Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
+                _ => {
+                    Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+                        * Quat::from_rotation_y(std::f32::consts::PI)
+                }
             };
 
             let tween4 = Tween::new(
@@ -429,7 +571,7 @@ pub fn handle_draw_hand<T>(
                 .entity(*entity)
                 .insert(Animator::new(seq))
                 .insert(Hand {
-                    player: shuffle.player,
+                    player: draw.player,
                 })
                 .remove::<Deck>()
                 .insert(PickableBundle::default())
@@ -487,7 +629,7 @@ pub fn handle_render_deck<T>(
                         transform: None,
                         data: card.clone(),
                     },
-                    Deck,
+                    Deck { marker: 1 },
                     PbrBundle {
                         mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
                         transform,
