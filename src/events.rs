@@ -26,9 +26,10 @@ pub struct AlignCardsInHand {
     pub player: usize,
 }
 
-#[derive(Event)]
-pub struct AlignChipsOnTable {
+#[derive(Debug, Event)]
+pub struct AlignChipsOnTable<P: Send + Clone + Sync + Debug + PartialEq + 'static> {
     pub chip_area: ChipArea,
+    pub chip_type: P,
 }
 
 #[derive(Event)]
@@ -101,13 +102,13 @@ pub fn handle_card_hover<T>(
     hover.read().for_each(|hover| {
         if let Ok((_, card, hand, transform)) = cards_in_hand.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
-                // card.transform = Some(transform.clone());
+                let start_translation = card.transform.unwrap().translation;
                 let tween = Tween::new(
                     EaseFunction::QuadraticIn,
                     Duration::from_millis(300),
                     TransformPositionLens {
-                        start: transform.translation,
-                        end: card.transform.unwrap().translation
+                        start: start_translation,
+                        end: start_translation
                             + match hand.player {
                                 1 => Vec3::new(0., 0.7, 0.7),
                                 _ => Vec3::new(0., 0.7, 0.0),
@@ -306,9 +307,14 @@ pub fn handle_place_card_off_table<T>(
 ) where
     T: Send + Clone + Sync + Debug + 'static,
 {
-    let duration = 75;
+    let duration = 150;
     for event in place_card_off_table.read() {
         let binding = set.p0();
+
+        if binding.get(event.card_entity).is_err() {
+            continue;
+        }
+
         let card_transform = binding
             .get(event.card_entity)
             .map(|(_, transform, _, _)| transform)
@@ -503,17 +509,18 @@ pub fn handle_draw_hand<T>(
                 },
             );
 
+            let end_transform = hand_translation
+                + Vec3::new(
+                    (cards_in_hand + i) as f32 * 2.6 - DECK_WIDTH / 2.0,
+                    0.0,
+                    0.0,
+                );
             let tween7 = Tween::new(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
                     start: slide_flat + new_offset - hand_deck_offset,
-                    end: hand_translation
-                        + Vec3::new(
-                            (cards_in_hand + i) as f32 * 2.6 - DECK_WIDTH / 2.0,
-                            0.0,
-                            0.0,
-                        ),
+                    end: end_transform,
                 },
             );
 
@@ -528,14 +535,7 @@ pub fn handle_draw_hand<T>(
 
             let card = Card::<T> {
                 pickable: true,
-                transform: Some(Transform::from_translation(
-                    hand_translation
-                        + Vec3::new(
-                            (cards_in_hand + i) as f32 * 2.6 - DECK_WIDTH / 2.0,
-                            0.0,
-                            0.0,
-                        ),
-                )),
+                transform: Some(Transform::from_translation(end_transform)),
                 data: card.data.clone(),
             };
 
@@ -689,25 +689,25 @@ pub fn handle_align_cards_in_hand<T>(
     }
 }
 
-pub fn handle_align_chips_on_table<T>(
+pub fn handle_align_chips_on_table<P>(
     mut commands: Commands,
-    mut chips_on_table: Query<(Entity, &mut Transform, &mut Chip<T>, &ChipArea)>,
-    mut er_align_chips_on_table: EventReader<AlignChipsOnTable>,
+    mut chips_on_table: Query<(Entity, &mut Transform, &mut Chip<P>, &ChipArea)>,
+    mut er_align_chips_on_table: EventReader<AlignChipsOnTable<P>>,
 ) where
-    T: Send + Clone + Sync + Debug + PartialEq + 'static,
+    P: Send + Clone + Sync + Debug + PartialEq + 'static,
 {
     for event in er_align_chips_on_table.read() {
+        println!("Aligning chips on table {:?}", event.chip_area);
         let mut chips = chips_on_table
             .iter_mut()
-            .filter(|(_, _, _, area)| **area == event.chip_area)
+            .filter(|(_, _, chip, area)| **area == event.chip_area && chip.data == event.chip_type)
             .collect::<Vec<_>>();
         chips.sort_by(|a, b| a.1.translation.x.partial_cmp(&b.1.translation.x).unwrap());
 
-        // animate x position change
         for (i, (entity, transform, _, _)) in chips.iter_mut().enumerate() {
             let original_translation = transform.translation;
             let mut new_translation = original_translation;
-            new_translation.x = i as f32 * 2.6 - DECK_WIDTH / 2.0;
+            new_translation.y = 0.1 + i as f32 * 0.2;
 
             let tween = Tween::new(
                 EaseFunction::QuadraticIn,

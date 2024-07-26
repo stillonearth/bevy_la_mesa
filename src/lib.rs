@@ -23,7 +23,9 @@ pub struct Card<CardType> {
 #[derive(Component, PartialEq, PartialOrd)]
 pub struct Chip<T> {
     pub data: T,
-    pub turn_activation: usize,
+    // todo this should be moved to metadata
+    pub turn_activation_1: usize,
+    pub turn_activation_2: usize,
 }
 
 #[derive(Component)]
@@ -42,7 +44,7 @@ pub struct PlayArea {
     pub player: usize,
 }
 
-#[derive(Component, Default, PartialEq)]
+#[derive(Component, Default, Debug, PartialEq)]
 pub struct ChipArea {
     pub marker: usize,
     pub player: usize,
@@ -109,7 +111,7 @@ impl<
             .add_event::<PlaceCardOnTable>()
             .add_event::<AlignCardsInHand>()
             .add_event::<PlaceCardOffTable>()
-            .add_event::<AlignChipsOnTable>();
+            .add_event::<AlignChipsOnTable<P>>();
     }
 }
 
