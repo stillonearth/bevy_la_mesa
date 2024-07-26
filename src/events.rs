@@ -7,8 +7,8 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::{
-    Card, CardMetadata, CardOnTable, Deck, DeckArea, Hand, HandArea, LaMesaPluginSettings,
-    PlayArea, DECK_WIDTH,
+    Card, CardMetadata, CardOnTable, Chip, ChipArea, Deck, DeckArea, Hand, HandArea,
+    LaMesaPluginSettings, PlayArea, DECK_WIDTH,
 };
 
 // Events
@@ -19,6 +19,16 @@ pub struct RenderDeck;
 #[derive(Event)]
 pub struct DeckShuffle {
     pub deck_entity: Entity,
+}
+
+#[derive(Event)]
+pub struct AlignCardsInHand {
+    pub player: usize,
+}
+
+#[derive(Event)]
+pub struct AlignChipsOnTable {
+    pub chip_area: ChipArea,
 }
 
 #[derive(Event)]
@@ -84,12 +94,12 @@ impl From<ListenerInput<Pointer<Down>>> for CardPress {
 pub fn handle_card_hover<T>(
     mut commands: Commands,
     mut hover: EventReader<CardHover>,
-    mut query: Query<(Entity, &mut Card<T>, &Hand, &mut Transform)>,
+    mut cards_in_hand: Query<(Entity, &mut Card<T>, &Hand, &mut Transform)>,
 ) where
     T: Send + Sync + Debug + 'static,
 {
     hover.read().for_each(|hover| {
-        if let Ok((_, card, hand, transform)) = query.get_mut(hover.entity) {
+        if let Ok((_, card, hand, transform)) = cards_in_hand.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 // card.transform = Some(transform.clone());
                 let tween = Tween::new(
@@ -355,62 +365,6 @@ pub fn handle_place_card_off_table<T>(
             })
             .insert(Animator::new(seq));
     }
-
-    // for event in place_card_off_table.read() {
-    //     let binding = set.p0();
-    //     let play_area_transform = binding
-    //         .iter()
-    //         .find(|(_, _, play_area)| {
-    //             play_area.marker == event.marker && play_area.player == event.player
-    //         })
-    //         .map(|(_, transform, _)| transform);
-
-    //     if play_area_transform.is_none() {
-    //         continue;
-    //     }
-    //     let play_area_transform = play_area_transform.unwrap();
-    //     let play_area_translation = play_area_transform.translation;
-    //     let play_area_rotation = play_area_transform.rotation;
-
-    //     let binding = set.p1();
-    //     let card_transform = binding
-    //         .get(event.card_entity)
-    //         .map(|(_, _, transform, _)| transform)
-    //         .unwrap();
-    //     let card_translation = card_transform.translation;
-    //     let card_rotation = card_transform.rotation;
-
-    //     let duration = 75;
-
-    //     let tween0 = Tween::new(
-    //         EaseFunction::QuadraticIn,
-    //         Duration::from_millis(duration),
-    //         TransformRotationLens {
-    //             start: card_rotation,
-    //             end: play_area_rotation,
-    //         },
-    //     );
-
-    //     let tween1 = Tween::new(
-    //         EaseFunction::QuadraticIn,
-    //         Duration::from_millis(duration),
-    //         TransformPositionLens {
-    //             start: card_translation,
-    //             end: play_area_translation,
-    //         },
-    //     );
-
-    //     let seq = tween0.then(tween1);
-
-    //     commands
-    //         .entity(event.card_entity)
-    //         .remove::<Hand>()
-    //         .insert(CardOnTable {
-    //             marker: event.marker,
-    //             player: event.player,
-    //         })
-    //         .insert(Animator::new(seq));
-    // }
 }
 
 pub fn handle_draw_hand<T>(
@@ -421,9 +375,14 @@ pub fn handle_draw_hand<T>(
         Query<(Entity, &mut Transform, &DeckArea)>,
         Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
     )>,
+    cards_in_hand: Query<&Hand>,
+    _plugin_settings: Res<LaMesaPluginSettings<T>>,
 ) where
-    T: Send + Clone + Sync + Debug + 'static,
+    T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
+    let duration = 75;
+    let offset = Vec3::new(3.6, -0.0, 0.0);
+
     er_draw_hand.read().for_each(|draw| {
         // find global position of hand with player number
         let binding = set.p0();
@@ -441,6 +400,7 @@ pub fn handle_draw_hand<T>(
         let deck_translation = deck_transform.translation;
         // deck_translation.z = 0.0;
         let _deck_rotation = deck_transform.rotation;
+        let hand_deck_offset = deck_translation - hand_translation;
 
         // list all cards whose parent is deck
         let binding = set.p2();
@@ -453,13 +413,15 @@ pub fn handle_draw_hand<T>(
         let mut sorted = cards.clone();
         sorted.sort_by(|a, b| a.2.translation.y.partial_cmp(&b.2.translation.y).unwrap());
 
-        let duration = 75;
-        let offset = Vec3::new(3.6, -0.0, 0.0);
-
-        let hand_deck_offset = deck_translation - hand_translation;
+        // number cards in hand
+        let cards_in_hand = cards_in_hand
+            .iter()
+            .filter(|hand| hand.player == draw.player)
+            .count();
+        let cards_to_draw = draw.num_cards - cards_in_hand;
 
         // draw the first `num_cards` cards
-        for (i, (entity, card, transform)) in sorted.iter_mut().take(draw.num_cards).enumerate() {
+        for (i, (entity, card, transform)) in sorted.iter_mut().take(cards_to_draw).enumerate() {
             let initial_translation = transform.translation;
 
             let initial_rotation = transform.rotation;
@@ -546,7 +508,12 @@ pub fn handle_draw_hand<T>(
                 Duration::from_millis(duration),
                 TransformPositionLens {
                     start: slide_flat + new_offset - hand_deck_offset,
-                    end: hand_translation + Vec3::new(i as f32 * 2.6 - DECK_WIDTH / 2.0, 0.0, 0.0),
+                    end: hand_translation
+                        + Vec3::new(
+                            (cards_in_hand + i) as f32 * 2.6 - DECK_WIDTH / 2.0,
+                            0.0,
+                            0.0,
+                        ),
                 },
             );
 
@@ -562,7 +529,12 @@ pub fn handle_draw_hand<T>(
             let card = Card::<T> {
                 pickable: true,
                 transform: Some(Transform::from_translation(
-                    hand_translation + Vec3::new(i as f32 * 2.6 - DECK_WIDTH / 2.0, 0.0, 0.0),
+                    hand_translation
+                        + Vec3::new(
+                            (cards_in_hand + i) as f32 * 2.6 - DECK_WIDTH / 2.0,
+                            0.0,
+                            0.0,
+                        ),
                 )),
                 data: card.data.clone(),
             };
@@ -676,6 +648,77 @@ pub fn handle_render_deck<T>(
                         },
                     ));
                 });
+        }
+    }
+}
+
+pub fn handle_align_cards_in_hand<T>(
+    mut commands: Commands,
+    mut cards_in_hand: Query<(Entity, &mut Card<T>, &Hand, &mut Transform)>,
+    mut er_align_cards_in_hand: EventReader<AlignCardsInHand>,
+) where
+    T: Send + Clone + Sync + Debug + CardMetadata + 'static,
+{
+    for event in er_align_cards_in_hand.read() {
+        let mut cards = cards_in_hand
+            .iter_mut()
+            .filter(|(_, _, hand, _)| hand.player == event.player)
+            .collect::<Vec<_>>();
+        cards.sort_by(|a, b| a.3.translation.x.partial_cmp(&b.3.translation.x).unwrap());
+
+        // animate x position change
+        for (i, (entity, card, _, transform)) in cards.iter_mut().enumerate() {
+            let original_translation = transform.translation;
+            let mut new_translation = original_translation;
+            new_translation.x = i as f32 * 2.6 - DECK_WIDTH / 2.0;
+
+            let tween = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(75),
+                TransformPositionLens {
+                    start: original_translation,
+                    end: new_translation,
+                },
+            );
+
+            // let mut card = card.
+            card.transform = Some(Transform::from_translation(new_translation));
+
+            commands.entity(*entity).insert(Animator::new(tween));
+        }
+    }
+}
+
+pub fn handle_align_chips_on_table<T>(
+    mut commands: Commands,
+    mut chips_on_table: Query<(Entity, &mut Transform, &mut Chip<T>, &ChipArea)>,
+    mut er_align_chips_on_table: EventReader<AlignChipsOnTable>,
+) where
+    T: Send + Clone + Sync + Debug + PartialEq + 'static,
+{
+    for event in er_align_chips_on_table.read() {
+        let mut chips = chips_on_table
+            .iter_mut()
+            .filter(|(_, _, _, area)| **area == event.chip_area)
+            .collect::<Vec<_>>();
+        chips.sort_by(|a, b| a.1.translation.x.partial_cmp(&b.1.translation.x).unwrap());
+
+        // animate x position change
+        for (i, (entity, transform, _, _)) in chips.iter_mut().enumerate() {
+            let original_translation = transform.translation;
+            let mut new_translation = original_translation;
+            new_translation.x = i as f32 * 2.6 - DECK_WIDTH / 2.0;
+
+            let tween = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(75),
+                TransformPositionLens {
+                    start: original_translation,
+                    end: new_translation,
+                },
+            );
+
+            commands.entity(*entity).insert(Animator::new(tween));
         }
     }
 }

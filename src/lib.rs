@@ -21,8 +21,9 @@ pub struct Card<CardType> {
 }
 
 #[derive(Component, PartialEq, PartialOrd)]
-pub struct Chip<ChipType> {
-    pub data: ChipType,
+pub struct Chip<T> {
+    pub data: T,
+    pub turn_activation: usize,
 }
 
 #[derive(Component)]
@@ -41,7 +42,7 @@ pub struct PlayArea {
     pub player: usize,
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Default, PartialEq)]
 pub struct ChipArea {
     pub marker: usize,
     pub player: usize,
@@ -66,16 +67,22 @@ pub struct CardOnTable {
 #[derive(Default, Resource)]
 pub struct LaMesaPluginSettings<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
     pub num_players: usize,
+    pub hand_size: usize,
     pub back_card_path: String,
     pub deck: Vec<T>,
 }
 
 #[derive(Default)]
-pub struct LaMesaPlugin<T: Send + Clone + Sync + Debug + CardMetadata + 'static>(
-    pub PhantomData<T>,
-);
+pub struct LaMesaPlugin<
+    T: Send + Clone + Sync + Debug + CardMetadata + 'static,
+    P: Send + Clone + Sync + Debug + PartialEq + 'static,
+>(pub PhantomData<(T, P)>);
 
-impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaPlugin<T> {
+impl<
+        T: Send + Clone + Sync + Debug + CardMetadata + 'static,
+        P: Send + Clone + Sync + Debug + PartialEq + 'static,
+    > Plugin for LaMesaPlugin<T, P>
+{
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, handle_render_deck::<T>)
             .add_systems(
@@ -88,6 +95,8 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
                     handle_place_card_on_table::<T>,
                     handle_place_card_off_table::<T>,
                     handle_render_deck::<T>,
+                    handle_align_cards_in_hand::<T>,
+                    handle_align_chips_on_table::<P>,
                 ),
             )
             .add_plugins((DefaultPickingPlugins, TweeningPlugin))
@@ -98,7 +107,9 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
             .add_event::<DrawHand>()
             .add_event::<RenderDeck>()
             .add_event::<PlaceCardOnTable>()
-            .add_event::<PlaceCardOffTable>();
+            .add_event::<AlignCardsInHand>()
+            .add_event::<PlaceCardOffTable>()
+            .add_event::<AlignChipsOnTable>();
     }
 }
 
