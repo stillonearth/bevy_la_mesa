@@ -14,11 +14,14 @@ use crate::{
 // Events
 
 #[derive(Event)]
-pub struct RenderDeck;
+pub struct RenderDeck<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
+    pub marker: usize,
+    pub deck: Vec<T>,
+}
 
 #[derive(Event)]
 pub struct DeckShuffle {
-    pub deck_entity: Entity,
+    pub deck_marker: usize,
 }
 
 #[derive(Event)]
@@ -47,7 +50,7 @@ pub struct PlaceCardOffTable {
 
 #[derive(Event)]
 pub struct DrawHand {
-    pub deck_entity: Entity,
+    pub deck_marker: usize,
     pub num_cards: usize,
     pub player: usize,
 }
@@ -100,7 +103,7 @@ pub fn handle_card_hover<T>(
     T: Send + Sync + Debug + 'static,
 {
     hover.read().for_each(|hover| {
-        if let Ok((_, card, hand, transform)) = cards_in_hand.get_mut(hover.entity) {
+        if let Ok((_, card, hand, _transform)) = cards_in_hand.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 let start_translation = card.transform.unwrap().translation;
                 let tween = Tween::new(
@@ -155,10 +158,11 @@ pub fn handle_deck_shuffle<T>(
 ) where
     T: Send + Clone + Sync + Debug + 'static,
 {
-    shuffle.read().for_each(|_shuffle| {
+    shuffle.read().for_each(|shuffle| {
         // list all cards whose parent is deck
         let cards: Vec<(Entity, &Card<T>, &Transform)> = query_cards
             .iter()
+            .filter(|(_, _, _, deck)| deck.marker == shuffle.deck_marker)
             .map(|(entity, card, transform, _)| (entity, card, transform))
             .collect();
 
@@ -169,10 +173,16 @@ pub fn handle_deck_shuffle<T>(
 
         // once cards shuffled reorder them with animation
         let duration = 75;
-        let random_offset_right = Vec3::new(3.6, -0.0, 0.0);
-        let random_offset_left = Vec3::new(-3.6, -0.0, 0.0);
+        let random_offset_right = Vec3::new(0.0, 0.0, -2.6);
+        let random_offset_left = Vec3::new(0.0, 0.0, 2.6);
 
-        let mut deck_translation = query_deck.iter().next().unwrap().1.translation;
+        // find deck with deck number
+        let mut deck_translation = query_deck
+            .iter()
+            .find(|(_, _, deck)| deck.marker == shuffle.deck_marker)
+            .unwrap()
+            .1
+            .translation;
         deck_translation.y = 0.0;
 
         for (i, (entity, _, transform)) in shuffled.iter().enumerate() {
@@ -234,7 +244,7 @@ pub fn handle_place_card_on_table<T>(
     mut place_card_on_table: EventReader<PlaceCardOnTable>,
     mut set: ParamSet<(
         Query<(Entity, &mut Transform, &PlayArea)>,
-        Query<(Entity, &Card<T>, &mut Transform, &Hand)>,
+        Query<(Entity, &Card<T>, &mut Transform)>,
     )>,
 ) where
     T: Send + Clone + Sync + Debug + 'static,
@@ -258,7 +268,7 @@ pub fn handle_place_card_on_table<T>(
         let binding = set.p1();
         let card_transform = binding
             .get(event.card_entity)
-            .map(|(_, _, transform, _)| transform)
+            .map(|(_, _, transform)| transform)
             .unwrap();
         let card_translation = card_transform.translation;
         let card_rotation = card_transform.rotation;
@@ -382,12 +392,11 @@ pub fn handle_draw_hand<T>(
         Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
     )>,
     cards_in_hand: Query<&Hand>,
-    _plugin_settings: Res<LaMesaPluginSettings<T>>,
 ) where
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
     let duration = 75;
-    let offset = Vec3::new(3.6, -0.0, 0.0);
+    let offset = Vec3::new(-3.6, -0.0, 0.0);
 
     er_draw_hand.read().for_each(|draw| {
         // find global position of hand with player number
@@ -402,7 +411,12 @@ pub fn handle_draw_hand<T>(
 
         // find position of deck
         let binding = set.p1();
-        let deck_transform = binding.get(draw.deck_entity).unwrap().1;
+        // find deck by deck_marker
+        let deck_transform = binding
+            .iter()
+            .find(|(_, _, deck)| deck.marker == draw.deck_marker)
+            .unwrap()
+            .1;
         let deck_translation = deck_transform.translation;
         // deck_translation.z = 0.0;
         let _deck_rotation = deck_transform.rotation;
@@ -412,6 +426,7 @@ pub fn handle_draw_hand<T>(
         let binding = set.p2();
         let cards: Vec<(Entity, &Card<T>, &Transform)> = binding
             .iter()
+            .filter(|(_, _, _, deck)| deck.marker == draw.deck_marker)
             .map(|(entity, card, transform, _)| (entity, card, transform))
             .collect();
 
@@ -558,15 +573,18 @@ pub fn handle_render_deck<T>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
-    plugin_settings: Res<LaMesaPluginSettings<T>>,
-    mut er_render_deck: EventReader<RenderDeck>,
+    plugin_settings: Res<LaMesaPluginSettings>,
+    mut er_render_deck: EventReader<RenderDeck<T>>,
 ) where
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
-    for _render in er_render_deck.read() {
+    for render in er_render_deck.read() {
         // load deck
-        let card_deck = plugin_settings.deck.clone();
-        let deck_transform = *deck.iter().next().unwrap().0;
+        let card_deck = render.deck.clone();
+        let (deck_transform, _) = deck
+            .iter()
+            .find(|(_, deck)| deck.marker == render.marker)
+            .unwrap();
         let deck_translation = deck_transform.translation;
         let deck_rotation = deck_transform.rotation;
 
@@ -601,7 +619,9 @@ pub fn handle_render_deck<T>(
                         transform: None,
                         data: card.clone(),
                     },
-                    Deck { marker: 1 },
+                    Deck {
+                        marker: render.marker,
+                    },
                     PbrBundle {
                         mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
                         transform,
@@ -697,7 +717,6 @@ pub fn handle_align_chips_on_table<P>(
     P: Send + Clone + Sync + Debug + PartialEq + 'static,
 {
     for event in er_align_chips_on_table.read() {
-        println!("Aligning chips on table {:?}", event.chip_area);
         let mut chips = chips_on_table
             .iter_mut()
             .filter(|(_, _, chip, area)| **area == event.chip_area && chip.data == event.chip_type)

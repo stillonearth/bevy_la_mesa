@@ -67,11 +67,10 @@ pub struct CardOnTable {
 }
 
 #[derive(Default, Resource)]
-pub struct LaMesaPluginSettings<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
+pub struct LaMesaPluginSettings {
     pub num_players: usize,
     pub hand_size: usize,
     pub back_card_path: String,
-    pub deck: Vec<T>,
 }
 
 #[derive(Default)]
@@ -107,7 +106,7 @@ impl<
             .add_event::<CardPress>()
             .add_event::<DeckShuffle>()
             .add_event::<DrawHand>()
-            .add_event::<RenderDeck>()
+            .add_event::<RenderDeck<T>>()
             .add_event::<PlaceCardOnTable>()
             .add_event::<AlignCardsInHand>()
             .add_event::<PlaceCardOffTable>()
