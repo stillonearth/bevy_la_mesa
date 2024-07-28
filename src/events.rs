@@ -396,9 +396,15 @@ pub fn handle_draw_hand<T>(
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
     let duration = 75;
-    let offset = Vec3::new(-3.6, -0.0, 0.0);
+    let offset = Vec3::new(0.0, -0.0, 2.6);
 
     er_draw_hand.read().for_each(|draw| {
+        let offset = offset
+            * match draw.player {
+                1 => 1.0,
+                _ => -1.0,
+            };
+
         // find global position of hand with player number
         let binding = set.p0();
         let hand_transform = binding
