@@ -2,6 +2,8 @@
 
 Plugin for building card-based games on bevy. Made during bevy jam #5
 
+![Screenshot 2024-08-06 125359](https://github.com/user-attachments/assets/2ce34ebe-262c-43b6-85d8-4c81568ac199)
+
 ## Versions
 
 | bevy_la_mesa | bevy |
