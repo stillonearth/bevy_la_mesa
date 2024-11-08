@@ -9,13 +9,21 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(LaMesaPlugin::<PokerCard, Chip>::default())
         .add_systems(Startup, (setup, setup_ui))
-        .add_systems(Update, (button_system,))
+        .add_systems(Update, (button_system, start_game))
         .insert_resource(LaMesaPluginSettings {
             num_players: 1,
             hand_size: 7,
             back_card_path: "background.png".into(),
         })
+        .insert_resource(GameState {
+            game_started: false,
+        })
         .run();
+}
+
+#[derive(Resource)]
+struct GameState {
+    game_started: bool,
 }
 
 /// set up lights and scene
@@ -44,8 +52,9 @@ fn setup(
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
             material: materials.add(Color::BLACK),
-            transform: Transform::from_translation(Vec3::new(-7.6, 0.0, 0.0))
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0))
                 .with_rotation(Quat::from_rotation_y(std::f32::consts::PI / 2.0)),
+            visibility: Visibility::Hidden,
             ..default()
         },
         DeckArea { marker: 1 },
@@ -53,11 +62,20 @@ fn setup(
     ));
 }
 
-fn start_game(mut ew_render_deck: EventWriter<RenderDeck<PokerCard>>) {
+fn start_game(
+    mut game_state: ResMut<GameState>,
+    mut ew_render_deck: EventWriter<RenderDeck<PokerCard>>,
+) {
+    if game_state.game_started {
+        return;
+    }
+
     ew_render_deck.send(RenderDeck::<PokerCard> {
         marker: 1,
         deck: load_poker_deck(),
     });
+
+    game_state.game_started = true;
 }
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
