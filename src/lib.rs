@@ -1,5 +1,4 @@
 pub mod events;
-pub mod utils;
 
 use bevy::prelude::*;
 use bevy_mod_picking::DefaultPickingPlugins;

@@ -9,10 +9,12 @@ repository = "https://github.com/stillonearth/bevy_la_mesa"
 
 [dependencies]
 bevy = "0.14"
-bevy-inspector-egui = "0.25"
 bevy_mod_picking = "0.20"
 bevy_tweening = "0.11"
 rand = "0.8"
+
+[dev-dependencies]
+bevy-inspector-egui = "0.27.0"
 
 [lints.clippy]
 too_many_arguments = "allow"
