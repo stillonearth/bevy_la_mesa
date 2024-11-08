@@ -407,11 +407,16 @@ pub fn handle_draw_hand<T>(
 
         // find global position of hand with player number
         let binding = set.p0();
-        let hand_transform = binding
+        let q = binding
             .iter()
             .find(|(_, _, hand)| hand.player == draw.player)
-            .map(|(_, transform, _)| transform)
-            .unwrap();
+            .map(|(_, transform, _)| transform);
+
+        if q.is_none() {
+            return;
+        }
+
+        let hand_transform = q.unwrap();
         let hand_translation = hand_transform.translation;
         let hand_rotation = hand_transform.rotation;
 
@@ -587,10 +592,11 @@ pub fn handle_render_deck<T>(
     for render in er_render_deck.read() {
         // load deck
         let card_deck = render.deck.clone();
-        let (deck_transform, _) = deck
-            .iter()
-            .find(|(_, deck)| deck.marker == render.marker)
-            .unwrap();
+        let q = deck.iter().find(|(_, deck)| deck.marker == render.marker);
+        if q.is_none() {
+            continue;
+        }
+        let (deck_transform, _) = q.unwrap();
         let deck_translation = deck_transform.translation;
         let deck_rotation = deck_transform.rotation;
 

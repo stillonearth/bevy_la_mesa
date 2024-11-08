@@ -9,6 +9,9 @@ pub struct PokerCard {
     pub filename: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct Chip {}
+
 impl CardMetadata for PokerCard {
     type Output = PokerCard;
 
