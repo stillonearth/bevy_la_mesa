@@ -2,7 +2,7 @@ use bevy::input::common_conditions::input_toggle_active;
 use bevy::{color::palettes::basic::*, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_la_mesa::events::{DeckShuffle, DrawHand, RenderDeck};
-use bevy_la_mesa::{CardMetadata, DeckArea, LaMesaPlugin, LaMesaPluginSettings};
+use bevy_la_mesa::{CardMetadata, DeckArea, HandArea, LaMesaPlugin, LaMesaPluginSettings};
 
 // // Main
 fn main() {
@@ -17,7 +17,7 @@ fn main() {
         .insert_resource(LaMesaPluginSettings {
             num_players: 1,
             hand_size: 7,
-            back_card_path: "background.png".into(),
+            back_card_path: "card-back2.png".into(),
         })
         .insert_resource(GameState {
             game_started: false,
@@ -56,6 +56,7 @@ fn setup(
         IsDefaultUiCamera,
     ));
 
+    // Deck
     commands.spawn((
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
@@ -67,6 +68,17 @@ fn setup(
         },
         DeckArea { marker: 1 },
         Name::new("Deck 1 -- Play Cards"),
+    ));
+
+    // Hand
+    commands.spawn((
+        Name::new("HandArea - Player 1"),
+        TransformBundle {
+            local: Transform::from_translation(Vec3::new(0.0, 1.5, 5.8))
+                .with_rotation(Quat::from_rotation_x(std::f32::consts::PI / 4.0)),
+            ..default()
+        },
+        HandArea { player: 1 },
     ));
 }
 
