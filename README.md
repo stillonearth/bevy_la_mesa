@@ -54,4 +54,4 @@ app.add_plugins((LaMesaPlugin::<Kard, ChipType>::default(), ObjPlugin))
 | PlaceCardOnTable  | place card from hand or deck on table |
 | AlignCardsInHand  | align cards in hands spacially        |
 | PlaceCardOffTable | remove card from table to deck        |
-| AlignChipsOnTable | align chips on table                  
+| AlignChipsOnTable | align chips on table                  |

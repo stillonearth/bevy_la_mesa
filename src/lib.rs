@@ -22,7 +22,6 @@ pub struct Card<CardType> {
 #[derive(Component, PartialEq, PartialOrd)]
 pub struct Chip<T> {
     pub data: T,
-    // todo this should be moved to metadata
     pub turn_activation_1: usize,
     pub turn_activation_2: usize,
 }
@@ -106,6 +105,7 @@ impl<
             .add_event::<DeckShuffle>()
             .add_event::<DrawHand>()
             .add_event::<RenderDeck<T>>()
+            .add_event::<DeckRendered>()
             .add_event::<PlaceCardOnTable>()
             .add_event::<AlignCardsInHand>()
             .add_event::<PlaceCardOffTable>()

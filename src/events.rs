@@ -20,6 +20,9 @@ pub struct RenderDeck<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
 }
 
 #[derive(Event)]
+pub struct DeckRendered {}
+
+#[derive(Event)]
 pub struct DeckShuffle {
     pub deck_marker: usize,
 }
@@ -586,6 +589,7 @@ pub fn handle_render_deck<T>(
     asset_server: Res<AssetServer>,
     plugin_settings: Res<LaMesaPluginSettings>,
     mut er_render_deck: EventReader<RenderDeck<T>>,
+    mut ew_deck_rendered: EventWriter<DeckRendered>,
 ) where
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
@@ -681,6 +685,8 @@ pub fn handle_render_deck<T>(
                     ));
                 });
         }
+
+        ew_deck_rendered.send(DeckRendered {});
     }
 }
 
@@ -713,7 +719,6 @@ pub fn handle_align_cards_in_hand<T>(
                 },
             );
 
-            // let mut card = card.
             card.transform = Some(Transform::from_translation(new_translation));
 
             commands.entity(*entity).insert(Animator::new(tween));
