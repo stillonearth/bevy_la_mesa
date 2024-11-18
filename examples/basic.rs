@@ -560,7 +560,7 @@ pub fn load_poker_deck() -> Vec<PokerCard> {
 impl CardMetadata for PokerCard {
     type Output = PokerCard;
 
-    fn filename(&self) -> String {
+    fn front_image_filename(&self) -> String {
         self.filename.clone()
     }
 }

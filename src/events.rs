@@ -7,8 +7,7 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::{
-    Card, CardMetadata, CardOnTable, Chip, ChipArea, Deck, DeckArea, Hand, HandArea,
-    LaMesaPluginSettings, PlayArea, DECK_WIDTH,
+    Card, CardMetadata, CardOnTable, ChipArea, Deck, DeckArea, Hand, HandArea, PlayArea, DECK_WIDTH,
 };
 
 // Events
@@ -46,7 +45,7 @@ pub struct PlaceCardOnTable {
 }
 
 #[derive(Event)]
-pub struct PlaceCardOffTable {
+pub struct DiscardCardToDeck {
     pub card_entity: Entity,
     pub deck_marker: usize,
 }
@@ -309,11 +308,11 @@ pub fn handle_place_card_on_table<T>(
     }
 }
 
-pub fn handle_place_card_off_table<T>(
+pub fn handle_discard_card_to_deck<T>(
     mut commands: Commands,
-    mut place_card_off_table: EventReader<PlaceCardOffTable>,
+    mut place_card_off_table: EventReader<DiscardCardToDeck>,
     mut set: ParamSet<(
-        Query<(Entity, &mut Transform, &CardOnTable, &Card<T>)>,
+        Query<(Entity, &mut Transform, &Card<T>)>,
         Query<(Entity, &mut Transform, &DeckArea)>,
         Query<(Entity, &mut Transform, &Deck)>,
     )>,
@@ -330,7 +329,7 @@ pub fn handle_place_card_off_table<T>(
 
         let card_transform = binding
             .get(event.card_entity)
-            .map(|(_, transform, _, _)| transform)
+            .map(|(_, transform, _)| transform)
             .unwrap();
 
         let card_translation = card_transform.translation;
@@ -378,6 +377,7 @@ pub fn handle_place_card_off_table<T>(
 
         commands
             .entity(event.card_entity)
+            .remove::<Hand>()
             .remove::<CardOnTable>()
             .insert(Deck {
                 marker: event.deck_marker,
@@ -587,7 +587,6 @@ pub fn handle_render_deck<T>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
-    plugin_settings: Res<LaMesaPluginSettings>,
     mut er_render_deck: EventReader<RenderDeck<T>>,
     mut ew_deck_rendered: EventWriter<DeckRendered>,
 ) where
@@ -605,13 +604,13 @@ pub fn handle_render_deck<T>(
         let deck_rotation = deck_transform.rotation;
 
         for (i, card) in card_deck.iter().enumerate() {
-            let face_texture = asset_server.load(card.clone().filename());
+            let face_texture = asset_server.load(card.clone().front_image_filename());
             let face_material = materials.add(StandardMaterial {
                 base_color_texture: Some(face_texture.clone()),
                 ..Default::default()
             });
 
-            let face_texture = asset_server.load(plugin_settings.back_card_path.clone());
+            let face_texture = asset_server.load(card.clone().back_image_filename());
             let back_material = materials.add(StandardMaterial {
                 base_color_texture: Some(face_texture.clone()),
                 ..Default::default()
@@ -720,39 +719,6 @@ pub fn handle_align_cards_in_hand<T>(
             );
 
             card.transform = Some(Transform::from_translation(new_translation));
-
-            commands.entity(*entity).insert(Animator::new(tween));
-        }
-    }
-}
-
-pub fn handle_align_chips_on_table<P>(
-    mut commands: Commands,
-    mut chips_on_table: Query<(Entity, &mut Transform, &mut Chip<P>, &ChipArea)>,
-    mut er_align_chips_on_table: EventReader<AlignChipsOnTable<P>>,
-) where
-    P: Send + Clone + Sync + Debug + PartialEq + 'static,
-{
-    for event in er_align_chips_on_table.read() {
-        let mut chips = chips_on_table
-            .iter_mut()
-            .filter(|(_, _, chip, area)| **area == event.chip_area && chip.data == event.chip_type)
-            .collect::<Vec<_>>();
-        chips.sort_by(|a, b| a.1.translation.x.partial_cmp(&b.1.translation.x).unwrap());
-
-        for (i, (entity, transform, _, _)) in chips.iter_mut().enumerate() {
-            let original_translation = transform.translation;
-            let mut new_translation = original_translation;
-            new_translation.y = 0.1 + i as f32 * 0.2;
-
-            let tween = Tween::new(
-                EaseFunction::QuadraticIn,
-                Duration::from_millis(75),
-                TransformPositionLens {
-                    start: original_translation,
-                    end: new_translation,
-                },
-            );
 
             commands.entity(*entity).insert(Animator::new(tween));
         }

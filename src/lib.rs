@@ -9,7 +9,8 @@ use std::{fmt::Debug, marker::PhantomData};
 pub trait CardMetadata {
     type Output;
 
-    fn filename(&self) -> String;
+    fn front_image_filename(&self) -> String;
+    fn back_image_filename(&self) -> String;
 }
 
 #[derive(Component)]
@@ -17,13 +18,6 @@ pub struct Card<CardType> {
     pub pickable: bool,
     pub transform: Option<Transform>,
     pub data: CardType,
-}
-
-#[derive(Component, PartialEq, PartialOrd)]
-pub struct Chip<T> {
-    pub data: T,
-    pub turn_activation_1: usize,
-    pub turn_activation_2: usize,
 }
 
 #[derive(Component)]
@@ -67,21 +61,14 @@ pub struct CardOnTable {
 #[derive(Default, Resource)]
 pub struct LaMesaPluginSettings {
     pub num_players: usize,
-    pub hand_size: usize,
-    pub back_card_path: String,
 }
 
 #[derive(Default)]
-pub struct LaMesaPlugin<
-    T: Send + Clone + Sync + Debug + CardMetadata + 'static,
-    P: Send + Clone + Sync + Debug + PartialEq + 'static,
->(pub PhantomData<(T, P)>);
+pub struct LaMesaPlugin<T: Send + Clone + Sync + Debug + CardMetadata + 'static>(
+    pub PhantomData<T>,
+);
 
-impl<
-        T: Send + Clone + Sync + Debug + CardMetadata + 'static,
-        P: Send + Clone + Sync + Debug + PartialEq + 'static,
-    > Plugin for LaMesaPlugin<T, P>
-{
+impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaPlugin<T> {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, handle_render_deck::<T>)
             .add_systems(
@@ -92,10 +79,9 @@ impl<
                     handle_deck_shuffle::<T>,
                     handle_draw_hand::<T>,
                     handle_place_card_on_table::<T>,
-                    handle_place_card_off_table::<T>,
+                    handle_discard_card_to_deck::<T>,
                     handle_render_deck::<T>,
                     handle_align_cards_in_hand::<T>,
-                    handle_align_chips_on_table::<P>,
                 ),
             )
             .add_plugins((DefaultPickingPlugins, TweeningPlugin))
@@ -108,8 +94,7 @@ impl<
             .add_event::<DeckRendered>()
             .add_event::<PlaceCardOnTable>()
             .add_event::<AlignCardsInHand>()
-            .add_event::<PlaceCardOffTable>()
-            .add_event::<AlignChipsOnTable<P>>();
+            .add_event::<DiscardCardToDeck>();
     }
 }
 
