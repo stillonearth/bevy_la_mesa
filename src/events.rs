@@ -413,7 +413,7 @@ pub fn handle_draw_to_table<T>(
 
         // sort cards by z-position
         let mut sorted = cards.clone();
-        sorted.sort_by(|a, b| a.2.translation.y.partial_cmp(&b.2.translation.y).unwrap());
+        sorted.sort_by(|a, b| b.2.translation.y.partial_cmp(&a.2.translation.y).unwrap());
 
         // draw the first `num_cards` cards
         for (i, (entity, card, transform)) in sorted
@@ -609,7 +609,7 @@ pub fn handle_draw_to_hand<T>(
 
         // sort cards by z-position
         let mut sorted = cards.clone();
-        sorted.sort_by(|a, b| a.2.translation.y.partial_cmp(&b.2.translation.y).unwrap());
+        sorted.sort_by(|a, b| b.2.translation.y.partial_cmp(&a.2.translation.y).unwrap());
 
         // number cards in hand
         let cards_in_hand = cards_in_hand
