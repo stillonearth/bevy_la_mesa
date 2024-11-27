@@ -1,7 +1,7 @@
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::{color::palettes::basic::*, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_la_mesa::events::{DeckShuffle, DrawHand, RenderDeck};
+use bevy_la_mesa::events::{DeckShuffle, DrawToHand, RenderDeck};
 use bevy_la_mesa::{CardMetadata, DeckArea, HandArea, LaMesaPlugin, LaMesaPluginSettings};
 
 // // Main
@@ -134,7 +134,7 @@ pub fn button_system(
     decks: Query<(Entity, &DeckArea)>,
     mut text_query: Query<&mut Text>,
     mut ew_shuffle: EventWriter<DeckShuffle>,
-    mut ew_draw: EventWriter<DrawHand>,
+    mut ew_draw: EventWriter<DrawToHand>,
 ) {
     if decks.iter().count() == 0 {
         return;
@@ -173,7 +173,7 @@ pub fn button_system(
                 *color = PRESSED_BUTTON.into();
                 border_color.0 = RED.into();
 
-                ew_draw.send(DrawHand {
+                ew_draw.send(DrawToHand {
                     deck_marker: 1,
                     num_cards: 5,
                     player: 1,

@@ -1,6 +1,6 @@
 [package]
 name = "bevy_la_mesa"
-version = "0.0.9"
+version = "0.0.10"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Build card games with Bevy"
@@ -20,10 +20,8 @@ bevy-inspector-egui = "0.27.0"
 too_many_arguments = "allow"
 type_complexity = "allow"
 
-# Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1
 
-# Enable a large amount of optimization in the dev profile for dependencies.
 [profile.dev.package."*"]
 opt-level = 3

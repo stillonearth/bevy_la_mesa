@@ -7,7 +7,7 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::{
-    Card, CardMetadata, CardOnTable, ChipArea, Deck, DeckArea, Hand, HandArea, PlayArea, DECK_WIDTH,
+    Card, CardMetadata, CardOnTable, Deck, DeckArea, Hand, HandArea, PlayArea, DECK_WIDTH,
 };
 
 // Events
@@ -31,12 +31,6 @@ pub struct AlignCardsInHand {
     pub player: usize,
 }
 
-#[derive(Debug, Event)]
-pub struct AlignChipsOnTable<P: Send + Clone + Sync + Debug + PartialEq + 'static> {
-    pub chip_area: ChipArea,
-    pub chip_type: P,
-}
-
 #[derive(Event)]
 pub struct PlaceCardOnTable {
     pub card_entity: Entity,
@@ -51,9 +45,16 @@ pub struct DiscardCardToDeck {
 }
 
 #[derive(Event)]
-pub struct DrawHand {
+pub struct DrawToHand {
     pub deck_marker: usize,
     pub num_cards: usize,
+    pub player: usize,
+}
+
+#[derive(Event)]
+pub struct DrawToTable {
+    pub deck_marker: usize,
+    pub play_area_markers: Vec<usize>,
     pub player: usize,
 }
 
@@ -386,9 +387,171 @@ pub fn handle_discard_card_to_deck<T>(
     }
 }
 
-pub fn handle_draw_hand<T>(
+pub fn handle_draw_to_table<T>(
     mut commands: Commands,
-    mut er_draw_hand: EventReader<DrawHand>,
+    mut er_draw_hand: EventReader<DrawToTable>,
+    q_play_area_area: Query<(Entity, &mut Transform, &PlayArea)>,
+    q_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck), Without<PlayArea>>,
+) where
+    T: Send + Clone + Sync + Debug + CardMetadata + 'static,
+{
+    let duration = 75;
+    let offset = Vec3::new(0.0, -0.0, 2.6);
+
+    er_draw_hand.read().for_each(|draw| {
+        let offset = offset
+            * match draw.player {
+                1 => 1.0,
+                _ => -1.0,
+            };
+
+        let cards: Vec<(Entity, &Card<T>, &Transform)> = q_cards
+            .iter()
+            .filter(|(_, _, _, deck)| deck.marker == draw.deck_marker)
+            .map(|(entity, card, transform, _)| (entity, card, transform))
+            .collect();
+
+        // sort cards by z-position
+        let mut sorted = cards.clone();
+        sorted.sort_by(|a, b| a.2.translation.y.partial_cmp(&b.2.translation.y).unwrap());
+
+        // draw the first `num_cards` cards
+        for (i, (entity, card, transform)) in sorted
+            .iter_mut()
+            .take(draw.play_area_markers.len())
+            .enumerate()
+        {
+            let initial_translation = transform.translation;
+            let initial_rotation = transform.rotation;
+            let new_offset = Vec3::new(0.0, i as f32 * 0.01, 0.0);
+            let play_area_marker = draw.play_area_markers[i];
+
+            // find deck by deck_marker
+            let play_area_transform = q_play_area_area
+                .iter()
+                .find(|(_, _, deck)| deck.marker == play_area_marker && deck.player == draw.player)
+                .unwrap()
+                .1;
+            let play_area_translation = play_area_transform.translation;
+            let play_area_rotation = play_area_transform.rotation;
+
+            let idle_tween = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis((duration * 4) * (i) as u64),
+                TransformPositionLens {
+                    start: initial_translation,
+                    end: initial_translation,
+                },
+            );
+
+            let slide = initial_translation + offset;
+            let tween1: Tween<Transform> = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(duration),
+                TransformPositionLens {
+                    start: initial_translation,
+                    end: slide,
+                },
+            );
+
+            let mut slide_flat = slide;
+            slide_flat.y = 0.0;
+
+            let tween2 = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(duration),
+                TransformPositionLens {
+                    start: slide,
+                    end: slide_flat + new_offset,
+                },
+            );
+
+            let tween3 = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis((duration * 4) * (draw.play_area_markers.len() - i) as u64),
+                TransformPositionLens {
+                    start: slide_flat + new_offset,
+                    end: slide_flat + new_offset,
+                },
+            );
+
+            // rotate angle depends on who player is
+            let end_rotation = match draw.player {
+                1 => Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
+                _ => {
+                    Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+                        * Quat::from_rotation_y(std::f32::consts::PI)
+                }
+            };
+
+            let tween4 = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(duration),
+                TransformRotationLens {
+                    start: initial_rotation,
+                    end: end_rotation,
+                },
+            );
+
+            let tween5 = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(duration),
+                TransformPositionLens {
+                    start: slide_flat + new_offset,
+                    end: slide_flat + new_offset,
+                },
+            );
+
+            let tween6 = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(duration),
+                TransformRotationLens {
+                    start: end_rotation,
+                    end: play_area_rotation,
+                },
+            );
+
+            let tween7 = Tween::new(
+                EaseFunction::QuadraticIn,
+                Duration::from_millis(duration),
+                TransformPositionLens {
+                    start: slide_flat + new_offset,
+                    end: play_area_translation,
+                },
+            );
+
+            let seq = idle_tween
+                .then(tween1)
+                .then(tween2)
+                .then(tween3)
+                .then(tween4)
+                .then(tween5)
+                .then(tween6)
+                .then(tween7);
+
+            let card = Card::<T> {
+                pickable: true,
+                transform: Some(Transform::from_translation(play_area_translation)),
+                data: card.data.clone(),
+            };
+
+            commands
+                .entity(*entity)
+                .insert(Animator::new(seq))
+                .insert(CardOnTable {
+                    marker: play_area_marker,
+                    player: draw.player,
+                })
+                .remove::<Deck>()
+                .insert(PickableBundle::default())
+                .insert(card);
+        }
+    });
+}
+
+pub fn handle_draw_to_hand<T>(
+    mut commands: Commands,
+    mut er_draw_hand: EventReader<DrawToHand>,
     mut set: ParamSet<(
         Query<(Entity, &mut Transform, &HandArea)>,
         Query<(Entity, &mut Transform, &DeckArea)>,
@@ -454,7 +617,6 @@ pub fn handle_draw_hand<T>(
             .filter(|hand| hand.player == draw.player)
             .count();
         let cards_to_draw = draw.num_cards - cards_in_hand;
-
         // draw the first `num_cards` cards
         for (i, (entity, card, transform)) in sorted.iter_mut().take(cards_to_draw).enumerate() {
             let initial_translation = transform.translation;

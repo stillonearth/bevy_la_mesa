@@ -36,12 +36,6 @@ pub struct PlayArea {
     pub player: usize,
 }
 
-#[derive(Component, Default, Debug, PartialEq)]
-pub struct ChipArea {
-    pub marker: usize,
-    pub player: usize,
-}
-
 #[derive(Component)]
 pub struct HandArea {
     pub player: usize,
@@ -74,27 +68,29 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
             .add_systems(
                 Update,
                 (
+                    handle_align_cards_in_hand::<T>,
                     handle_card_hover::<T>,
                     handle_card_out::<T>,
                     handle_deck_shuffle::<T>,
-                    handle_draw_hand::<T>,
-                    handle_place_card_on_table::<T>,
                     handle_discard_card_to_deck::<T>,
+                    handle_draw_to_hand::<T>,
+                    handle_draw_to_table::<T>,
+                    handle_place_card_on_table::<T>,
                     handle_render_deck::<T>,
-                    handle_align_cards_in_hand::<T>,
                 ),
             )
             .add_plugins((DefaultPickingPlugins, TweeningPlugin))
+            .add_event::<AlignCardsInHand>()
             .add_event::<CardHover>()
             .add_event::<CardOut>()
             .add_event::<CardPress>()
-            .add_event::<DeckShuffle>()
-            .add_event::<DrawHand>()
-            .add_event::<RenderDeck<T>>()
             .add_event::<DeckRendered>()
+            .add_event::<DeckShuffle>()
+            .add_event::<DiscardCardToDeck>()
+            .add_event::<DrawToHand>()
+            .add_event::<DrawToTable>()
             .add_event::<PlaceCardOnTable>()
-            .add_event::<AlignCardsInHand>()
-            .add_event::<DiscardCardToDeck>();
+            .add_event::<RenderDeck<T>>();
     }
 }
 
