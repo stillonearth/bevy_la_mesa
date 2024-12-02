@@ -16,6 +16,8 @@ use crate::{
 pub struct RenderDeck<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
     pub marker: usize,
     pub deck: Vec<T>,
+    // hack fork
+    pub front_images: Vec<Handle<Image>>,
 }
 
 #[derive(Event)]
@@ -759,6 +761,7 @@ pub fn handle_render_deck<T>(
         let card_deck = render.deck.clone();
         let q = deck.iter().find(|(_, deck)| deck.marker == render.marker);
         if q.is_none() {
+            println!("i abort here");
             continue;
         }
         let (deck_transform, _) = q.unwrap();
@@ -766,11 +769,20 @@ pub fn handle_render_deck<T>(
         let deck_rotation = deck_transform.rotation;
 
         for (i, card) in card_deck.iter().enumerate() {
-            let face_texture = asset_server.load(card.clone().front_image_filename());
-            let face_material = materials.add(StandardMaterial {
-                base_color_texture: Some(face_texture.clone()),
-                ..Default::default()
-            });
+            let face_material: Handle<StandardMaterial>;
+            if render.front_images.len() == 0 {
+                let face_texture = asset_server.load(card.clone().front_image_filename());
+                face_material = materials.add(StandardMaterial {
+                    base_color_texture: Some(face_texture.clone()),
+                    ..Default::default()
+                });
+            } else {
+                let face_texture = render.front_images[i].clone();
+                face_material = materials.add(StandardMaterial {
+                    base_color_texture: Some(face_texture.clone()),
+                    ..Default::default()
+                });
+            }
 
             let face_texture = asset_server.load(card.clone().back_image_filename());
             let back_material = materials.add(StandardMaterial {
