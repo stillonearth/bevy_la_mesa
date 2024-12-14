@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_mod_picking::{events::*, prelude::*};
 use bevy_tweening::{lens::*, *};
 
 use rand::prelude::*;
@@ -16,6 +15,8 @@ use crate::{
 pub struct RenderDeck<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
     pub marker: usize,
     pub deck: Vec<T>,
+    // hack fork
+    pub front_images: Vec<Handle<Image>>,
 }
 
 #[derive(Event)]
@@ -63,8 +64,8 @@ pub struct CardHover {
     pub entity: Entity,
 }
 
-impl From<ListenerInput<Pointer<Over>>> for CardHover {
-    fn from(event: ListenerInput<Pointer<Over>>) -> Self {
+impl From<Pointer<Over>> for CardHover {
+    fn from(event: Pointer<Over>) -> Self {
         CardHover {
             entity: event.target,
         }
@@ -76,8 +77,8 @@ pub struct CardOut {
     pub entity: Entity,
 }
 
-impl From<ListenerInput<Pointer<Out>>> for CardOut {
-    fn from(event: ListenerInput<Pointer<Out>>) -> Self {
+impl From<Pointer<Out>> for CardOut {
+    fn from(event: Pointer<Out>) -> Self {
         CardOut {
             entity: event.target,
         }
@@ -86,13 +87,13 @@ impl From<ListenerInput<Pointer<Out>>> for CardOut {
 
 #[derive(Event)]
 pub struct CardPress {
-    pub card_entity: Entity,
+    pub entity: Entity,
 }
 
-impl From<ListenerInput<Pointer<Down>>> for CardPress {
-    fn from(event: ListenerInput<Pointer<Down>>) -> Self {
+impl From<Pointer<Down>> for CardPress {
+    fn from(event: Pointer<Down>) -> Self {
         CardPress {
-            card_entity: event.target,
+            entity: event.target,
         }
     }
 }
@@ -543,7 +544,7 @@ pub fn handle_draw_to_table<T>(
                     player: draw.player,
                 })
                 .remove::<Deck>()
-                .insert(PickableBundle::default())
+                // .insert(PickableBundle::default())
                 .insert(card);
         }
     });
@@ -737,7 +738,7 @@ pub fn handle_draw_to_hand<T>(
                     player: draw.player,
                 })
                 .remove::<Deck>()
-                .insert(PickableBundle::default())
+                // .insert(PickableBundle::default())
                 .insert(card);
         }
     });
@@ -766,11 +767,20 @@ pub fn handle_render_deck<T>(
         let deck_rotation = deck_transform.rotation;
 
         for (i, card) in card_deck.iter().enumerate() {
-            let face_texture = asset_server.load(card.clone().front_image_filename());
-            let face_material = materials.add(StandardMaterial {
-                base_color_texture: Some(face_texture.clone()),
-                ..Default::default()
-            });
+            let face_material: Handle<StandardMaterial>;
+            if render.front_images.len() == 0 {
+                let face_texture = asset_server.load(card.clone().front_image_filename());
+                face_material = materials.add(StandardMaterial {
+                    base_color_texture: Some(face_texture.clone()),
+                    ..Default::default()
+                });
+            } else {
+                let face_texture = render.front_images[i].clone();
+                face_material = materials.add(StandardMaterial {
+                    base_color_texture: Some(face_texture.clone()),
+                    ..Default::default()
+                });
+            }
 
             let face_texture = asset_server.load(card.clone().back_image_filename());
             let back_material = materials.add(StandardMaterial {
@@ -799,56 +809,53 @@ pub fn handle_render_deck<T>(
                     Deck {
                         marker: render.marker,
                     },
-                    PbrBundle {
-                        mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
-                        transform,
-                        ..default()
-                    },
-                    PickableBundle::default(),
-                    On::<Pointer<Over>>::send_event::<CardHover>(),
-                    On::<Pointer<Down>>::send_event::<CardPress>(),
-                    On::<Pointer<Out>>::send_event::<CardOut>(),
+                    Mesh3d(meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10))),
+                    transform,
                 ))
+                .observe(on_card_click)
+                .observe(on_card_over)
+                .observe(on_card_out)
                 .with_children(|parent| {
                     // face
                     parent.spawn((
-                        PbrBundle {
-                            mesh: meshes
-                                .add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
-                            material: face_material,
-                            ..default()
-                        },
-                        PickableBundle {
-                            pickable: Pickable {
-                                is_hoverable: false,
-                                ..default()
-                            },
-                            ..default()
-                        },
+                        Mesh3d(
+                            meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
+                        ),
+                        MeshMaterial3d(face_material),
                     ));
+
                     // back
                     parent.spawn((
-                        PbrBundle {
-                            mesh: meshes
-                                .add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
-                            material: back_material,
-                            transform: Transform::IDENTITY
-                                .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
-                            ..default()
-                        },
-                        PickableBundle {
-                            pickable: Pickable {
-                                is_hoverable: false,
-                                ..default()
-                            },
-                            ..default()
-                        },
+                        Mesh3d(
+                            meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
+                        ),
+                        MeshMaterial3d(back_material),
+                        Transform::IDENTITY
+                            .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
                     ));
                 });
         }
 
         ew_deck_rendered.send(DeckRendered {});
     }
+}
+
+fn on_card_click(click: Trigger<Pointer<Click>>, mut ew_card: EventWriter<CardPress>) {
+    ew_card.send(CardPress {
+        entity: click.entity(),
+    });
+}
+
+fn on_card_over(click: Trigger<Pointer<Over>>, mut ew_card: EventWriter<CardHover>) {
+    ew_card.send(CardHover {
+        entity: click.entity(),
+    });
+}
+
+fn on_card_out(click: Trigger<Pointer<Out>>, mut ew_card: EventWriter<CardOut>) {
+    ew_card.send(CardOut {
+        entity: click.entity(),
+    });
 }
 
 pub fn handle_align_cards_in_hand<T>(

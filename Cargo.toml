@@ -1,6 +1,6 @@
 [package]
 name = "bevy_la_mesa"
-version = "0.0.10"
+version = "0.15.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Build card games with Bevy"
@@ -8,13 +8,12 @@ keywords = ["cards", "tabletop", "bevy"]
 repository = "https://github.com/stillonearth/bevy_la_mesa"
 
 [dependencies]
-bevy = "0.14"
-bevy_mod_picking = "0.20"
-bevy_tweening = "0.11"
+bevy = "0.15"
+bevy_tweening = "0.12"
 rand = "0.8"
 
 [dev-dependencies]
-bevy-inspector-egui = "0.27.0"
+bevy-inspector-egui = "0.28.0"
 
 [lints.clippy]
 too_many_arguments = "allow"

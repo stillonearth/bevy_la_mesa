@@ -6,17 +6,4 @@
 
 Plugin for building card-based games on bevy. Handles deck, cards, hand and table.
 
-## Events
 
-|   Event             | Descritpion                           |
-| ------------------- | ------------------------------------- |
-| `RenderDeck`        | render deck on table                  |
-| `DeckRendered`      | when deck is rendered                 |
-| `CardHover`         | mouse card hover on                   |
-| `CardOut`           | mouse card pointer off                |
-| `CardPress`         | press card                            |
-| `DeckShuffle`       | shuffle deck of cards                 |
-| `DrawHand`          | draw cards from deck to hard          |
-| `PlaceCardOnTable`  | place card from hand or deck on table |
-| `AlignCardsInHand`  | align cards in hands spacially        |
-| `DiscardCardToDeck` | place card from back to deck          |

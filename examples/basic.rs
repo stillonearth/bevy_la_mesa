@@ -7,18 +7,14 @@ use bevy_la_mesa::{CardMetadata, DeckArea, HandArea, LaMesaPlugin, LaMesaPluginS
 // // Main
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(LaMesaPlugin::<PokerCard, Chip>::default())
+        .add_plugins((DefaultPlugins, MeshPickingPlugin))
+        .add_plugins(LaMesaPlugin::<PokerCard>::default())
         .add_systems(Startup, (setup, setup_ui))
         .add_systems(Update, (button_system, start_game))
         .add_plugins(
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         )
-        .insert_resource(LaMesaPluginSettings {
-            num_players: 1,
-            hand_size: 7,
-            back_card_path: "card-back2.png".into(),
-        })
+        .insert_resource(LaMesaPluginSettings { num_players: 1 })
         .insert_resource(GameState {
             game_started: false,
         })
@@ -37,35 +33,29 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
+    commands.spawn((
+        PointLight {
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
+        Transform::from_xyz(4.0, 8.0, 4.0),
+    ));
 
     // camera
     commands.spawn((
         Name::new("Camera"),
-        Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 15.0, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
+        Camera3d::default(),
+        Transform::from_xyz(0.0, 15.0, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
         IsDefaultUiCamera,
     ));
 
     // Deck
     commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10)),
-            material: materials.add(Color::BLACK),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0))
-                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI / 2.0)),
-            visibility: Visibility::Hidden,
-            ..default()
-        },
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10))),
+        MeshMaterial3d(materials.add(Color::BLACK)),
+        Transform::from_translation(Vec3::new(0.0, 0.0, 0.0))
+            .with_rotation(Quat::from_rotation_y(std::f32::consts::PI / 2.0)),
+        Visibility::Hidden,
         DeckArea { marker: 1 },
         Name::new("Deck 1 -- Play Cards"),
     ));
@@ -73,11 +63,8 @@ fn setup(
     // Hand
     commands.spawn((
         Name::new("HandArea - Player 1"),
-        TransformBundle {
-            local: Transform::from_translation(Vec3::new(0.0, 1.5, 5.8))
-                .with_rotation(Quat::from_rotation_x(std::f32::consts::PI / 4.0)),
-            ..default()
-        },
+        Transform::from_translation(Vec3::new(0.0, 1.5, 5.8))
+            .with_rotation(Quat::from_rotation_x(std::f32::consts::PI / 4.0)),
         HandArea { player: 1 },
     ));
 }
@@ -93,6 +80,7 @@ fn start_game(
     ew_render_deck.send(RenderDeck::<PokerCard> {
         marker: 1,
         deck: load_poker_deck(),
+        front_images: vec![],
     });
 
     game_state.game_started = true;
@@ -196,14 +184,11 @@ pub fn button_system(
 pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
     commands
         .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Px(65.0),
-                    align_items: AlignItems::Start,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             Name::new("UI"),
@@ -212,66 +197,58 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
             // Shuffle
             parent
                 .spawn((
-                    ButtonBundle {
-                        style: Style {
-                            width: Val::Px(350.0),
-                            height: Val::Px(65.0),
-                            border: UiRect::all(Val::Px(5.0)),
-                            // horizontally center child text
-                            justify_content: JustifyContent::Center,
-                            // vertically center child text
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        border_color: BorderColor(Color::BLACK),
-                        border_radius: BorderRadius::MAX,
-                        background_color: NORMAL_BUTTON.into(),
+                    Button,
+                    Node {
+                        width: Val::Px(150.0),
+                        height: Val::Px(65.0),
+                        border: UiRect::all(Val::Px(5.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
                         ..default()
                     },
+                    BorderColor(Color::BLACK),
+                    BorderRadius::MAX,
+                    BackgroundColor(NORMAL_BUTTON),
                     ButtonShuffleDeck,
                 ))
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "shuffle deck",
-                        TextStyle {
-                            // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 40.0,
-                            color: Color::srgb(0.9, 0.9, 0.9),
-                            ..default()
-                        },
-                    ));
-                });
+                .with_child((
+                    Text::new("Shuffle deck"),
+                    TextFont {
+                        font_size: 33.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                ));
 
             // Draw hands
             parent
                 .spawn((
-                    ButtonBundle {
-                        style: Style {
-                            width: Val::Px(350.0),
-                            height: Val::Px(65.0),
-                            border: UiRect::all(Val::Px(5.0)),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        border_color: BorderColor(Color::BLACK),
-                        border_radius: BorderRadius::MAX,
-                        background_color: NORMAL_BUTTON.into(),
+                    Button,
+                    Node {
+                        width: Val::Px(150.0),
+                        height: Val::Px(65.0),
+                        border: UiRect::all(Val::Px(5.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
                         ..default()
                     },
+                    BorderColor(Color::BLACK),
+                    BorderRadius::MAX,
+                    BackgroundColor(NORMAL_BUTTON),
                     ButtonDrawHand,
                 ))
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "draw hand",
-                        TextStyle {
-                            // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 40.0,
-                            color: Color::srgb(0.9, 0.9, 0.9),
-                            ..default()
-                        },
-                    ));
-                });
+                .with_child((
+                    Text::new("Draw hand"),
+                    TextFont {
+                        font_size: 33.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                ));
         });
 }
 
@@ -562,5 +539,9 @@ impl CardMetadata for PokerCard {
 
     fn front_image_filename(&self) -> String {
         self.filename.clone()
+    }
+
+    fn back_image_filename(&self) -> String {
+        "card-back1.png".into()
     }
 }
