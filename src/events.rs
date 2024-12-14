@@ -767,20 +767,19 @@ pub fn handle_render_deck<T>(
         let deck_rotation = deck_transform.rotation;
 
         for (i, card) in card_deck.iter().enumerate() {
-            let face_material: Handle<StandardMaterial>;
-            if render.front_images.len() == 0 {
+            let face_material: Handle<StandardMaterial> = if render.front_images.is_empty() {
                 let face_texture = asset_server.load(card.clone().front_image_filename());
-                face_material = materials.add(StandardMaterial {
+                materials.add(StandardMaterial {
                     base_color_texture: Some(face_texture.clone()),
                     ..Default::default()
-                });
+                })
             } else {
                 let face_texture = render.front_images[i].clone();
-                face_material = materials.add(StandardMaterial {
+                materials.add(StandardMaterial {
                     base_color_texture: Some(face_texture.clone()),
                     ..Default::default()
-                });
-            }
+                })
+            };
 
             let face_texture = asset_server.load(card.clone().back_image_filename());
             let back_material = materials.add(StandardMaterial {
