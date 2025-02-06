@@ -9,6 +9,7 @@ repository = "https://github.com/stillonearth/bevy_la_mesa"
 
 [dependencies]
 bevy = "0.15"
+bevy_asset_loader = "0.22"
 bevy_tweening = "0.12"
 rand = "0.8"
 

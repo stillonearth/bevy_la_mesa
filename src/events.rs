@@ -14,9 +14,8 @@ use crate::{
 #[derive(Event)]
 pub struct RenderDeck<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
     pub marker: usize,
+    pub deck_folder: Option<String>,
     pub deck: Vec<T>,
-    // hack fork
-    pub front_images: Vec<Handle<Image>>,
 }
 
 #[derive(Event)]
@@ -744,6 +743,8 @@ pub fn handle_draw_to_hand<T>(
     });
 }
 
+pub fn preload_card_images() {}
+
 pub fn handle_render_deck<T>(
     mut commands: Commands,
     deck: Query<(&Transform, &DeckArea)>,
@@ -756,6 +757,10 @@ pub fn handle_render_deck<T>(
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
     for render in er_render_deck.read() {
+        // if let Some(card_folder) = render.deck_folder.clone() {
+        //     let _loaded_folder: Handle<LoadedFolder> = asset_server.load_folder("card_folder");
+        // }
+
         // load deck
         let card_deck = render.deck.clone();
         let q = deck.iter().find(|(_, deck)| deck.marker == render.marker);
@@ -767,22 +772,14 @@ pub fn handle_render_deck<T>(
         let deck_rotation = deck_transform.rotation;
 
         for (i, card) in card_deck.iter().enumerate() {
-            let face_material: Handle<StandardMaterial> = if render.front_images.is_empty() {
-                let face_texture = asset_server.load(card.clone().front_image_filename());
-                materials.add(StandardMaterial {
-                    base_color_texture: Some(face_texture.clone()),
-                    ..Default::default()
-                })
-            } else {
-                let face_texture = render.front_images[i].clone();
-                materials.add(StandardMaterial {
-                    base_color_texture: Some(face_texture.clone()),
-                    ..Default::default()
-                })
-            };
-
-            let face_texture = asset_server.load(card.clone().back_image_filename());
+            let back_texture = asset_server.load(card.clone().back_image_filename());
             let back_material = materials.add(StandardMaterial {
+                base_color_texture: Some(back_texture.clone()),
+                ..Default::default()
+            });
+
+            let face_texture = asset_server.load(card.clone().front_image_filename());
+            let face_material: Handle<StandardMaterial> = materials.add(StandardMaterial {
                 base_color_texture: Some(face_texture.clone()),
                 ..Default::default()
             });
