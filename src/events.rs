@@ -13,8 +13,7 @@ use crate::{
 
 #[derive(Event)]
 pub struct RenderDeck<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
-    pub marker: usize,
-    pub deck_folder: Option<String>,
+    pub deck_entity: Entity,
     pub deck: Vec<T>,
 }
 
@@ -170,7 +169,7 @@ pub fn handle_deck_shuffle<T>(
             .collect();
 
         // shuffle the cards
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut shuffled = cards.clone();
         shuffled.shuffle(&mut rng);
 
@@ -757,17 +756,9 @@ pub fn handle_render_deck<T>(
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
     for render in er_render_deck.read() {
-        // if let Some(card_folder) = render.deck_folder.clone() {
-        //     let _loaded_folder: Handle<LoadedFolder> = asset_server.load_folder("card_folder");
-        // }
-
         // load deck
         let card_deck = render.deck.clone();
-        let q = deck.iter().find(|(_, deck)| deck.marker == render.marker);
-        if q.is_none() {
-            continue;
-        }
-        let (deck_transform, _) = q.unwrap();
+        let (deck_transform, deck_area) = deck.get(render.deck_entity).unwrap();
         let deck_translation = deck_transform.translation;
         let deck_rotation = deck_transform.rotation;
 
@@ -803,7 +794,7 @@ pub fn handle_render_deck<T>(
                         data: card.clone(),
                     },
                     Deck {
-                        marker: render.marker,
+                        marker: deck_area.marker,
                     },
                     Mesh3d(meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10))),
                     transform,
