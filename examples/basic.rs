@@ -33,13 +33,10 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // light
-    commands.spawn((
-        PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(4.0, 8.0, 4.0),
-    ));
+    commands.insert_resource(AmbientLight {
+        color: WHITE.into(),
+        brightness: 1000.0,
+    });
 
     // camera
     commands.spawn((
@@ -72,15 +69,17 @@ fn setup(
 fn start_game(
     mut game_state: ResMut<GameState>,
     mut ew_render_deck: EventWriter<RenderDeck<PokerCard>>,
+    q_decks: Query<(Entity, &DeckArea)>,
 ) {
     if game_state.game_started {
         return;
     }
 
+    let deck = q_decks.iter().next().unwrap();
+    let deck_entity = &deck.0;
     ew_render_deck.send(RenderDeck::<PokerCard> {
-        marker: 1,
+        deck_entity: *deck_entity,
         deck: load_poker_deck(),
-        front_images: vec![],
     });
 
     game_state.game_started = true;
@@ -127,8 +126,6 @@ pub fn button_system(
     if decks.iter().count() == 0 {
         return;
     }
-
-    // let deck_entity = decks.iter().next().unwrap().0;
 
     for (interaction, mut color, mut border_color, children, _) in &mut set.p0().iter_mut() {
         let mut _text = text_query.get_mut(children[0]).unwrap();
@@ -185,8 +182,8 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
     commands
         .spawn((
             Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
+                // width: Val::Percent(100.0),
+                // height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 ..default()
@@ -199,7 +196,7 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
                 .spawn((
                     Button,
                     Node {
-                        width: Val::Px(150.0),
+                        width: Val::Px(350.0),
                         height: Val::Px(65.0),
                         border: UiRect::all(Val::Px(5.0)),
                         // horizontally center child text
@@ -227,7 +224,7 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
                 .spawn((
                     Button,
                     Node {
-                        width: Val::Px(150.0),
+                        width: Val::Px(250.0),
                         height: Val::Px(65.0),
                         border: UiRect::all(Val::Px(5.0)),
                         // horizontally center child text
