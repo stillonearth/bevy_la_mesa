@@ -106,7 +106,6 @@ pub fn handle_card_hover<T>(
     T: Send + Sync + Debug + 'static,
 {
     hover.read().for_each(|hover| {
-        return;
         if let Ok((_, card, hand, _transform)) = cards_in_hand.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 let start_translation = card.transform.unwrap().translation;
@@ -137,7 +136,6 @@ pub fn handle_card_out<T>(
     T: Send + Sync + Debug + 'static,
 {
     out.read().for_each(|hover| {
-        return;
         if let Ok((_, card, _, transform)) = query.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 let tween = Tween::new(
@@ -824,12 +822,13 @@ pub fn handle_render_deck<T>(
                     Deck {
                         marker: deck_area.marker,
                     },
+                    RayCastPickable {},
                     Mesh3d(meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10))),
                     transform,
                 ))
-                .observe(on_card_click)
                 .observe(on_card_over)
                 .observe(on_card_out)
+                .observe(on_card_click)
                 .with_children(|parent| {
                     // face
                     parent.spawn((
@@ -862,7 +861,6 @@ fn on_card_click(click: Trigger<Pointer<Click>>, mut ew_card: EventWriter<CardPr
 }
 
 fn on_card_over(click: Trigger<Pointer<Over>>, mut ew_card: EventWriter<CardHover>) {
-    // println!("hover");
     ew_card.send(CardHover {
         entity: click.entity(),
     });
