@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_defer::*;
 use bevy_tweening::{lens::*, *};
 
 use rand::prelude::*;
@@ -110,13 +111,13 @@ pub fn handle_card_hover<T>(
                 let start_translation = card.transform.unwrap().translation;
                 let tween = Tween::new(
                     EaseFunction::QuadraticIn,
-                    Duration::from_millis(300),
+                    Duration::from_millis(100),
                     TransformPositionLens {
                         start: start_translation,
                         end: start_translation
                             + match hand.player {
-                                1 => Vec3::new(0., 0.7, 0.7),
-                                _ => Vec3::new(0., 0.7, 0.0),
+                                1 => Vec3::new(0., 0.7 / 3.0, 0.7 / 3.0),
+                                _ => Vec3::new(0., 0.7 / 3.0, 0.0),
                             },
                     },
                 );
@@ -139,7 +140,7 @@ pub fn handle_card_out<T>(
             if card.pickable && card.transform.is_some() {
                 let tween = Tween::new(
                     EaseFunction::QuadraticIn,
-                    Duration::from_millis(300),
+                    Duration::from_millis(100),
                     TransformPositionLens {
                         start: transform.translation,
                         end: card.transform.unwrap().translation,
@@ -741,12 +742,28 @@ pub fn handle_draw_to_hand<T>(
             commands
                 .entity(*entity)
                 .insert(Animator::new(seq))
-                .insert(Hand {
-                    player: draw.player,
-                })
                 .remove::<Deck>()
                 // .insert(PickableBundle::default())
                 .insert(card);
+
+            let pause = Duration::from_millis((duration * 4) * (i) as u64)
+                + Duration::from_millis(duration)
+                + Duration::from_millis(duration)
+                + Duration::from_millis((duration * 4) * (draw.num_cards - i) as u64)
+                + Duration::from_millis(duration)
+                + Duration::from_millis(duration)
+                + Duration::from_millis(duration)
+                + Duration::from_millis(duration);
+            let pause = pause.as_secs_f32();
+
+            let card_entity = entity.clone();
+            let player = draw.player;
+            commands.spawn_task(move || async move {
+                AsyncWorld.sleep(pause).await;
+                AsyncWorld.entity(card_entity).insert(Hand { player })?;
+
+                Ok(())
+            });
         }
     });
 }
@@ -843,6 +860,7 @@ fn on_card_click(click: Trigger<Pointer<Click>>, mut ew_card: EventWriter<CardPr
 }
 
 fn on_card_over(click: Trigger<Pointer<Over>>, mut ew_card: EventWriter<CardHover>) {
+    // println!("hover");
     ew_card.send(CardHover {
         entity: click.entity(),
     });
