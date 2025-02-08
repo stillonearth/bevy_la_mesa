@@ -22,7 +22,7 @@ pub struct DeckRendered {}
 
 #[derive(Event)]
 pub struct DeckShuffle {
-    pub deck_marker: usize,
+    pub deck_entity: Entity,
 }
 
 #[derive(Event)]
@@ -40,19 +40,19 @@ pub struct PlaceCardOnTable {
 #[derive(Event)]
 pub struct DiscardCardToDeck {
     pub card_entity: Entity,
-    pub deck_marker: usize,
+    pub deck_entity: Entity,
 }
 
 #[derive(Event)]
 pub struct DrawToHand {
-    pub deck_marker: usize,
+    pub deck_entity: Entity,
     pub num_cards: usize,
     pub player: usize,
 }
 
 #[derive(Event)]
 pub struct DrawToTable {
-    pub deck_marker: usize,
+    pub deck_entity: Entity,
     pub play_area_markers: Vec<usize>,
     pub player: usize,
 }
@@ -161,10 +161,12 @@ pub fn handle_deck_shuffle<T>(
     T: Send + Clone + Sync + Debug + 'static,
 {
     shuffle.read().for_each(|shuffle| {
+        let shuffle_deck = query_deck.get(shuffle.deck_entity).unwrap().2;
+
         // list all cards whose parent is deck
         let cards: Vec<(Entity, &Card<T>, &Transform)> = query_cards
             .iter()
-            .filter(|(_, _, _, deck)| deck.marker == shuffle.deck_marker)
+            .filter(|(_, _, _, deck)| deck.marker == shuffle_deck.marker)
             .map(|(entity, card, transform, _)| (entity, card, transform))
             .collect();
 
@@ -181,7 +183,7 @@ pub fn handle_deck_shuffle<T>(
         // find deck with deck number
         let mut deck_translation = query_deck
             .iter()
-            .find(|(_, _, deck)| deck.marker == shuffle.deck_marker)
+            .find(|(_, _, deck)| deck.marker == shuffle_deck.marker)
             .unwrap()
             .1
             .translation;
@@ -337,9 +339,11 @@ pub fn handle_discard_card_to_deck<T>(
 
         // get highest card on deck
         let binding = set.p1();
+        let discard_deck_marker = binding.get(event.deck_entity).unwrap().2.marker;
+
         let deck_transform = binding
             .iter()
-            .filter(|(_, _, deck)| deck.marker == event.deck_marker)
+            .filter(|(_, _, deck)| deck.marker == discard_deck_marker)
             .max_by_key(|(_, transform, _)| (transform.translation.y * 100.0) as usize)
             .unwrap()
             .1;
@@ -349,7 +353,7 @@ pub fn handle_discard_card_to_deck<T>(
         let binding = set.p2();
         let number_cards_on_deck = binding
             .iter()
-            .filter(|(_, _, deck)| deck.marker == event.deck_marker)
+            .filter(|(_, _, deck)| deck.marker == discard_deck_marker)
             .count();
 
         let final_translation =
@@ -380,7 +384,7 @@ pub fn handle_discard_card_to_deck<T>(
             .remove::<Hand>()
             .remove::<CardOnTable>()
             .insert(Deck {
-                marker: event.deck_marker,
+                marker: discard_deck_marker,
             })
             .insert(Animator::new(seq));
     }
@@ -391,6 +395,7 @@ pub fn handle_draw_to_table<T>(
     mut er_draw_hand: EventReader<DrawToTable>,
     q_play_area_area: Query<(Entity, &mut Transform, &PlayArea)>,
     q_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck), Without<PlayArea>>,
+    q_decks: Query<(Entity, &DeckArea)>,
 ) where
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
@@ -404,9 +409,11 @@ pub fn handle_draw_to_table<T>(
                 _ => -1.0,
             };
 
+        let draw_deck = q_decks.get(draw.deck_entity).unwrap().1;
+
         let cards: Vec<(Entity, &Card<T>, &Transform)> = q_cards
             .iter()
-            .filter(|(_, _, _, deck)| deck.marker == draw.deck_marker)
+            .filter(|(_, _, _, deck)| deck.marker == draw_deck.marker)
             .map(|(entity, card, transform, _)| (entity, card, transform))
             .collect();
 
@@ -587,10 +594,12 @@ pub fn handle_draw_to_hand<T>(
 
         // find position of deck
         let binding = set.p1();
+
+        let hand_deck_marker = binding.get(draw.deck_entity).unwrap().2.marker;
         // find deck by deck_marker
         let deck_transform = binding
             .iter()
-            .find(|(_, _, deck)| deck.marker == draw.deck_marker)
+            .find(|(_, _, deck)| deck.marker == hand_deck_marker)
             .unwrap()
             .1;
         let deck_translation = deck_transform.translation;
@@ -602,7 +611,7 @@ pub fn handle_draw_to_hand<T>(
         let binding = set.p2();
         let cards: Vec<(Entity, &Card<T>, &Transform)> = binding
             .iter()
-            .filter(|(_, _, _, deck)| deck.marker == draw.deck_marker)
+            .filter(|(_, _, _, deck)| deck.marker == hand_deck_marker)
             .map(|(entity, card, transform, _)| (entity, card, transform))
             .collect();
 

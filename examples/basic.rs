@@ -123,9 +123,7 @@ pub fn button_system(
     mut ew_shuffle: EventWriter<DeckShuffle>,
     mut ew_draw: EventWriter<DrawToHand>,
 ) {
-    if decks.iter().count() == 0 {
-        return;
-    }
+    let deck_entity = decks.iter().next().unwrap().0;
 
     for (interaction, mut color, mut border_color, children, _) in &mut set.p0().iter_mut() {
         let mut _text = text_query.get_mut(children[0]).unwrap();
@@ -135,7 +133,9 @@ pub fn button_system(
                 *color = PRESSED_BUTTON.into();
                 border_color.0 = RED.into();
 
-                ew_shuffle.send(DeckShuffle { deck_marker: 1 });
+                ew_shuffle.send(DeckShuffle {
+                    deck_entity: deck_entity.clone(),
+                });
             }
             Interaction::Hovered => {
                 // text.sections[0].value = "Hover".to_string();
@@ -154,23 +154,20 @@ pub fn button_system(
         let mut _text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Pressed => {
-                // text.sections[0].value = "Press".to_string();
                 *color = PRESSED_BUTTON.into();
                 border_color.0 = RED.into();
 
                 ew_draw.send(DrawToHand {
-                    deck_marker: 1,
+                    deck_entity: deck_entity.clone(),
                     num_cards: 5,
                     player: 1,
                 });
             }
             Interaction::Hovered => {
-                // text.sections[0].value = "Hover".to_string();
                 *color = HOVERED_BUTTON.into();
                 border_color.0 = Color::WHITE;
             }
             Interaction::None => {
-                // text.sections[0].value = "Button".to_string();
                 *color = NORMAL_BUTTON.into();
                 border_color.0 = Color::BLACK;
             }
@@ -182,8 +179,6 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
     commands
         .spawn((
             Node {
-                // width: Val::Percent(100.0),
-                // height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 ..default()
@@ -199,9 +194,7 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
                         width: Val::Px(350.0),
                         height: Val::Px(65.0),
                         border: UiRect::all(Val::Px(5.0)),
-                        // horizontally center child text
                         justify_content: JustifyContent::Center,
-                        // vertically center child text
                         align_items: AlignItems::Center,
                         ..default()
                     },
@@ -227,9 +220,7 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
                         width: Val::Px(250.0),
                         height: Val::Px(65.0),
                         border: UiRect::all(Val::Px(5.0)),
-                        // horizontally center child text
                         justify_content: JustifyContent::Center,
-                        // vertically center child text
                         align_items: AlignItems::Center,
                         ..default()
                     },
