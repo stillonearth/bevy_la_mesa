@@ -106,6 +106,7 @@ pub fn handle_card_hover<T>(
     T: Send + Sync + Debug + 'static,
 {
     hover.read().for_each(|hover| {
+        return;
         if let Ok((_, card, hand, _transform)) = cards_in_hand.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 let start_translation = card.transform.unwrap().translation;
@@ -136,6 +137,7 @@ pub fn handle_card_out<T>(
     T: Send + Sync + Debug + 'static,
 {
     out.read().for_each(|hover| {
+        return;
         if let Ok((_, card, _, transform)) = query.get_mut(hover.entity) {
             if card.pickable && card.transform.is_some() {
                 let tween = Tween::new(

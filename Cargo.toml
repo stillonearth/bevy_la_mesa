@@ -8,7 +8,7 @@ keywords = ["cards", "tabletop", "bevy"]
 repository = "https://github.com/stillonearth/bevy_la_mesa"
 
 [dependencies]
-bevy = "0.15"
+bevy = "0.15.2"
 bevy_asset_loader = "0.22"
 bevy_defer = "0.13"
 bevy_tweening = "0.12"

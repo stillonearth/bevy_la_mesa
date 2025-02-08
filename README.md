@@ -6,4 +6,6 @@
 
 Plugin for building card-based games on bevy. Handles deck, cards, hand and table.
 
+## Usage
 
+Plugin requires bevy_defer plugin initialized at top level.

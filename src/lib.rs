@@ -1,7 +1,6 @@
 pub mod events;
 
 use bevy::prelude::*;
-use bevy_defer::AsyncPlugin;
 use bevy_tweening::TweeningPlugin;
 use events::*;
 use std::{fmt::Debug, marker::PhantomData};
@@ -64,8 +63,7 @@ pub struct LaMesaPlugin<T: Send + Clone + Sync + Debug + CardMetadata + 'static>
 
 impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaPlugin<T> {
     fn build(&self, app: &mut App) {
-        app.add_plugins(AsyncPlugin::default_settings())
-            .add_systems(Startup, handle_render_deck::<T>)
+        app.add_systems(Startup, handle_render_deck::<T>)
             .add_systems(
                 Update,
                 (
