@@ -12,7 +12,7 @@ bevy = "0.15.2"
 bevy_asset_loader = "0.22"
 bevy_defer = "0.13"
 bevy_tweening = "0.12"
-rand = "0.9"
+rand = "0.8.5"
 
 [dev-dependencies]
 bevy-inspector-egui = "0.29.0"

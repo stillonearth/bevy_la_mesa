@@ -172,7 +172,7 @@ pub fn handle_deck_shuffle<T>(
             .collect();
 
         // shuffle the cards
-        let mut rng = rand::rng();
+        let mut rng = rand::thread_rng();
         let mut shuffled = cards.clone();
         shuffled.shuffle(&mut rng);
 

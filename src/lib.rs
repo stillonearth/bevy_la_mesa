@@ -77,7 +77,9 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
                     handle_draw_to_table::<T>,
                     handle_place_card_on_table::<T>,
                     handle_render_deck::<T>,
-                ),
+                    apply_deferred,
+                )
+                    .chain(),
             )
             .add_plugins(TweeningPlugin)
             .add_event::<AlignCardsInHand>()
