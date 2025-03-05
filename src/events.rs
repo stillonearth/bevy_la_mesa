@@ -24,6 +24,7 @@ pub struct DeckRendered {}
 #[derive(Event)]
 pub struct DeckShuffle {
     pub deck_entity: Entity,
+    pub duration: u64,
 }
 
 #[derive(Event)]
@@ -56,6 +57,7 @@ pub struct DrawToTable {
     pub deck_entity: Entity,
     pub play_area_markers: Vec<usize>,
     pub player: usize,
+    pub duration: u64,
 }
 
 #[derive(Event)]
@@ -177,7 +179,7 @@ pub fn handle_deck_shuffle<T>(
         shuffled.shuffle(&mut rng);
 
         // once cards shuffled reorder them with animation
-        let duration = 75;
+        let duration = shuffle.duration;
         let random_offset_right = Vec3::new(0.0, 0.0, -2.6);
         let random_offset_left = Vec3::new(0.0, 0.0, 2.6);
 
@@ -400,7 +402,6 @@ pub fn handle_draw_to_table<T>(
 ) where
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
-    let duration = 75;
     let offset = Vec3::new(0.0, -0.0, 2.6);
 
     er_draw_hand.read().for_each(|draw| {
@@ -410,7 +411,12 @@ pub fn handle_draw_to_table<T>(
                 _ => -1.0,
             };
 
-        let draw_deck = q_decks.get(draw.deck_entity).unwrap().1;
+        let result = q_decks.get(draw.deck_entity);
+        if result.is_err() {
+            return;
+        }
+
+        let draw_deck = result.unwrap().1;
 
         let cards: Vec<(Entity, &Card<T>, &Transform)> = q_cards
             .iter()
@@ -444,7 +450,7 @@ pub fn handle_draw_to_table<T>(
 
             let idle_tween = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis((duration * 4) * (i) as u64),
+                Duration::from_millis((draw.duration * 4) * (i) as u64),
                 TransformPositionLens {
                     start: initial_translation,
                     end: initial_translation,
@@ -454,7 +460,7 @@ pub fn handle_draw_to_table<T>(
             let slide = initial_translation + offset;
             let tween1: Tween<Transform> = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis(duration),
+                Duration::from_millis(draw.duration),
                 TransformPositionLens {
                     start: initial_translation,
                     end: slide,
@@ -466,7 +472,7 @@ pub fn handle_draw_to_table<T>(
 
             let tween2 = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis(duration),
+                Duration::from_millis(draw.duration),
                 TransformPositionLens {
                     start: slide,
                     end: slide_flat + new_offset,
@@ -475,7 +481,9 @@ pub fn handle_draw_to_table<T>(
 
             let tween3 = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis((duration * 4) * (draw.play_area_markers.len() - i) as u64),
+                Duration::from_millis(
+                    (draw.duration * 4) * (draw.play_area_markers.len() - i) as u64,
+                ),
                 TransformPositionLens {
                     start: slide_flat + new_offset,
                     end: slide_flat + new_offset,
@@ -493,7 +501,7 @@ pub fn handle_draw_to_table<T>(
 
             let tween4 = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis(duration),
+                Duration::from_millis(draw.duration),
                 TransformRotationLens {
                     start: initial_rotation,
                     end: end_rotation,
@@ -502,7 +510,7 @@ pub fn handle_draw_to_table<T>(
 
             let tween5 = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis(duration),
+                Duration::from_millis(draw.duration),
                 TransformPositionLens {
                     start: slide_flat + new_offset,
                     end: slide_flat + new_offset,
@@ -511,7 +519,7 @@ pub fn handle_draw_to_table<T>(
 
             let tween6 = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis(duration),
+                Duration::from_millis(draw.duration),
                 TransformRotationLens {
                     start: end_rotation,
                     end: play_area_rotation,
@@ -520,7 +528,7 @@ pub fn handle_draw_to_table<T>(
 
             let tween7 = Tween::new(
                 EaseFunction::QuadraticIn,
-                Duration::from_millis(duration),
+                Duration::from_millis(draw.duration),
                 TransformPositionLens {
                     start: slide_flat + new_offset,
                     end: play_area_translation,
@@ -550,7 +558,6 @@ pub fn handle_draw_to_table<T>(
                     player: draw.player,
                 })
                 .remove::<Deck>()
-                // .insert(PickableBundle::default())
                 .insert(card);
         }
     });
