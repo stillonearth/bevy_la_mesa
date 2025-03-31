@@ -603,7 +603,13 @@ pub fn handle_draw_to_hand<T>(
         // find position of deck
         let binding = set.p1();
 
-        let hand_deck_marker = binding.get(draw.deck_entity).unwrap().2.marker;
+        let deck = binding.get(draw.deck_entity);
+        if deck.is_err() {
+            return;
+        }
+
+        let deck = deck.unwrap();
+        let hand_deck_marker = deck.2.marker;
         // find deck by deck_marker
         let deck_transform = binding
             .iter()
