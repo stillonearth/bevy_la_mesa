@@ -14,7 +14,7 @@ fn main() {
         .add_plugins(
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         )
-        .insert_resource(LaMesaPluginSettings { num_players: 1 })
+        .insert_resource(LaMesaPluginSettings { num_players: 1, disable_card_animation: false })
         .insert_resource(GameState {
             game_started: false,
         })
@@ -135,6 +135,7 @@ pub fn button_system(
 
                 ew_shuffle.send(DeckShuffle {
                     deck_entity: deck_entity.clone(),
+                    duration: 8,
                 });
             }
             Interaction::Hovered => {
