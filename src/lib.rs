@@ -54,7 +54,6 @@ pub struct CardOnTable {
 #[derive(Default, Resource)]
 pub struct LaMesaPluginSettings {
     pub num_players: usize,
-    pub disable_card_animation: bool,
 }
 
 #[derive(Default)]
