@@ -1,5 +1,6 @@
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::{color::palettes::basic::*, prelude::*};
+use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_la_mesa::events::{DeckShuffle, DrawToHand, RenderDeck};
 use bevy_la_mesa::{CardMetadata, DeckArea, HandArea, LaMesaPlugin, LaMesaPluginSettings};
@@ -11,9 +12,12 @@ fn main() {
         .add_plugins(LaMesaPlugin::<PokerCard>::default())
         .add_systems(Startup, (setup, setup_ui))
         .add_systems(Update, (button_system, start_game))
-        .add_plugins(
+        .add_plugins((
+            EguiPlugin {
+                enable_multipass_for_primary_context: true,
+            },
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
-        )
+        ))
         .insert_resource(LaMesaPluginSettings { num_players: 1 })
         .insert_resource(GameState {
             game_started: false,
@@ -36,6 +40,7 @@ fn setup(
     commands.insert_resource(AmbientLight {
         color: WHITE.into(),
         brightness: 1000.0,
+        ..default()
     });
 
     // camera
@@ -77,7 +82,7 @@ fn start_game(
 
     let deck = q_decks.iter().next().unwrap();
     let deck_entity = &deck.0;
-    ew_render_deck.send(RenderDeck::<PokerCard> {
+    ew_render_deck.write(RenderDeck::<PokerCard> {
         deck_entity: *deck_entity,
         deck: load_poker_deck(),
     });
@@ -133,8 +138,9 @@ pub fn button_system(
                 *color = PRESSED_BUTTON.into();
                 border_color.0 = RED.into();
 
-                ew_shuffle.send(DeckShuffle {
+                ew_shuffle.write(DeckShuffle {
                     deck_entity: deck_entity.clone(),
+                    duration: 250,
                 });
             }
             Interaction::Hovered => {
@@ -157,7 +163,7 @@ pub fn button_system(
                 *color = PRESSED_BUTTON.into();
                 border_color.0 = RED.into();
 
-                ew_draw.send(DrawToHand {
+                ew_draw.write(DrawToHand {
                     deck_entity: deck_entity.clone(),
                     num_cards: 5,
                     player: 1,

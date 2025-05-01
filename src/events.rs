@@ -91,8 +91,8 @@ pub struct CardPress {
     pub entity: Entity,
 }
 
-impl From<Pointer<Down>> for CardPress {
-    fn from(event: Pointer<Down>) -> Self {
+impl From<Pointer<Pressed>> for CardPress {
+    fn from(event: Pointer<Pressed>) -> Self {
         CardPress {
             entity: event.target,
         }
@@ -835,7 +835,7 @@ pub fn handle_render_deck<T>(
                     Deck {
                         marker: deck_area.marker,
                     },
-                    RayCastPickable {},
+                    Pickable::default(),
                     Mesh3d(meshes.add(Plane3d::default().mesh().size(2.5, 3.5).subdivisions(10))),
                     transform,
                 ))
@@ -863,25 +863,25 @@ pub fn handle_render_deck<T>(
                 });
         }
 
-        ew_deck_rendered.send(DeckRendered {});
+        ew_deck_rendered.write(DeckRendered {});
     }
 }
 
 fn on_card_click(click: Trigger<Pointer<Click>>, mut ew_card: EventWriter<CardPress>) {
-    ew_card.send(CardPress {
-        entity: click.entity(),
+    ew_card.write(CardPress {
+        entity: click.target(),
     });
 }
 
 fn on_card_over(click: Trigger<Pointer<Over>>, mut ew_card: EventWriter<CardHover>) {
-    ew_card.send(CardHover {
-        entity: click.entity(),
+    ew_card.write(CardHover {
+        entity: click.target(),
     });
 }
 
 fn on_card_out(click: Trigger<Pointer<Out>>, mut ew_card: EventWriter<CardOut>) {
-    ew_card.send(CardOut {
-        entity: click.entity(),
+    ew_card.write(CardOut {
+        entity: click.target(),
     });
 }
 
