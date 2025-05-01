@@ -1,5 +1,6 @@
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::{color::palettes::basic::*, prelude::*};
+use bevy_defer::AsyncPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_la_mesa::events::{DeckShuffle, DrawToHand, RenderDeck};
@@ -10,6 +11,7 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, MeshPickingPlugin))
         .add_plugins(LaMesaPlugin::<PokerCard>::default())
+        .add_plugins(AsyncPlugin::default_settings())
         .add_systems(Startup, (setup, setup_ui))
         .add_systems(Update, (button_system, start_game))
         .add_plugins((
@@ -140,7 +142,7 @@ pub fn button_system(
 
                 ew_shuffle.write(DeckShuffle {
                     deck_entity: deck_entity.clone(),
-                    duration: 250,
+                    duration: 8,
                 });
             }
             Interaction::Hovered => {
