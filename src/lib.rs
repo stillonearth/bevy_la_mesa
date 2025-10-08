@@ -80,17 +80,17 @@ impl<T: Send + Clone + Sync + Debug + CardMetadata + 'static> Plugin for LaMesaP
                     .chain(),
             )
             .add_plugins(TweeningPlugin)
-            .add_event::<AlignCardsInHand>()
-            .add_event::<CardHover>()
-            .add_event::<CardOut>()
-            .add_event::<CardPress>()
-            .add_event::<DeckRendered>()
-            .add_event::<DeckShuffle>()
-            .add_event::<DiscardCardToDeck>()
-            .add_event::<DrawToHand>()
-            .add_event::<DrawToTable>()
-            .add_event::<PlaceCardOnTable>()
-            .add_event::<RenderDeck<T>>();
+            .add_message::<AlignCardsInHand>()
+            .add_message::<CardHover>()
+            .add_message::<CardOut>()
+            .add_message::<CardPress>()
+            .add_message::<DeckRendered>()
+            .add_message::<DeckShuffle>()
+            .add_message::<DiscardCardToDeck>()
+            .add_message::<DrawToHand>()
+            .add_message::<DrawToTable>()
+            .add_message::<PlaceCardOnTable>()
+            .add_message::<RenderDeck<T>>();
     }
 }
 

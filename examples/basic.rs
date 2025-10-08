@@ -17,6 +17,7 @@ fn main() {
         .add_plugins((
             EguiPlugin {
                 enable_multipass_for_primary_context: true,
+                ..default()
             },
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         ))
@@ -108,7 +109,7 @@ pub fn button_system(
             (
                 &Interaction,
                 &mut BackgroundColor,
-                &mut BorderColor,
+                // &mut BorderColor,
                 &Children,
                 &ButtonShuffleDeck,
             ),
@@ -118,7 +119,7 @@ pub fn button_system(
             (
                 &Interaction,
                 &mut BackgroundColor,
-                &mut BorderColor,
+                // &mut BorderColor,
                 &Children,
                 &ButtonDrawHand,
             ),
@@ -132,13 +133,13 @@ pub fn button_system(
 ) {
     let deck_entity = decks.iter().next().unwrap().0;
 
-    for (interaction, mut color, mut border_color, children, _) in &mut set.p0().iter_mut() {
+    for (interaction, mut color, children, _) in &mut set.p0().iter_mut() {
         let mut _text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Pressed => {
                 // text.sections[0].value = "Press".to_string();
                 *color = PRESSED_BUTTON.into();
-                border_color.0 = RED.into();
+                // border_color.0 = RED.into();
 
                 ew_shuffle.write(DeckShuffle {
                     deck_entity: deck_entity.clone(),
@@ -148,22 +149,22 @@ pub fn button_system(
             Interaction::Hovered => {
                 // text.sections[0].value = "Hover".to_string();
                 *color = HOVERED_BUTTON.into();
-                border_color.0 = Color::WHITE;
+                // border_color.0 = Color::WHITE;
             }
             Interaction::None => {
                 // text.sections[0].value = "Button".to_string();
                 *color = NORMAL_BUTTON.into();
-                border_color.0 = Color::BLACK;
+                // border_color.0 = Color::BLACK;
             }
         }
     }
 
-    for (interaction, mut color, mut border_color, children, _) in &mut set.p1().iter_mut() {
+    for (interaction, mut color, children, _) in &mut set.p1().iter_mut() {
         let mut _text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
-                border_color.0 = RED.into();
+                // border_color.0 = RED.into();
 
                 ew_draw.write(DrawToHand {
                     deck_entity: deck_entity.clone(),
@@ -173,11 +174,11 @@ pub fn button_system(
             }
             Interaction::Hovered => {
                 *color = HOVERED_BUTTON.into();
-                border_color.0 = Color::WHITE;
+                // border_color.0 = Color::WHITE;
             }
             Interaction::None => {
                 *color = NORMAL_BUTTON.into();
-                border_color.0 = Color::BLACK;
+                // border_color.0 = Color::BLACK;
             }
         }
     }
@@ -198,15 +199,15 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
             parent
                 .spawn((
                     Button,
-                    Node {
-                        width: Val::Px(350.0),
-                        height: Val::Px(65.0),
-                        border: UiRect::all(Val::Px(5.0)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    BorderColor(Color::BLACK),
+                    // Node {
+                    //     width: Val::Px(350.0),
+                    //     height: Val::Px(65.0),
+                    //     border: UiRect::all(Val::Px(5.0)),
+                    //     justify_content: JustifyContent::Center,
+                    //     align_items: AlignItems::Center,
+                    //     ..default()
+                    // },
+                    // BorderColor(Color::BLACK),
                     BorderRadius::MAX,
                     BackgroundColor(NORMAL_BUTTON),
                     ButtonShuffleDeck,
@@ -224,15 +225,15 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
             parent
                 .spawn((
                     Button,
-                    Node {
-                        width: Val::Px(250.0),
-                        height: Val::Px(65.0),
-                        border: UiRect::all(Val::Px(5.0)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    BorderColor(Color::BLACK),
+                    // Node {
+                    //     width: Val::Px(250.0),
+                    //     height: Val::Px(65.0),
+                    //     border: UiRect::all(Val::Px(5.0)),
+                    //     justify_content: JustifyContent::Center,
+                    //     align_items: AlignItems::Center,
+                    //     ..default()
+                    // },
+                    // BorderColor(Color::BLACK),
                     BorderRadius::MAX,
                     BackgroundColor(NORMAL_BUTTON),
                     ButtonDrawHand,

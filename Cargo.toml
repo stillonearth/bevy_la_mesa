@@ -1,6 +1,6 @@
 [package]
 name = "bevy_la_mesa"
-version = "0.16.0"
+version = "0.17.0-rc1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Build card games with Bevy"
@@ -8,7 +8,7 @@ keywords = ["cards", "tabletop", "bevy"]
 repository = "https://github.com/stillonearth/bevy_la_mesa"
 
 [dependencies]
-bevy = { version = "0.16", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "bevy_animation",
     "bevy_asset",
     "bevy_color",
@@ -33,14 +33,15 @@ bevy = { version = "0.16", default-features = false, features = [
     "wayland",
     "web",
     "x11",
+    "zstd_rust"
 ] }
-bevy_asset_loader = "0.23.0-rc.4"
-bevy_defer = "0.14"
-bevy_tweening = "0.13"
+bevy_asset_loader = "0.24.0-rc.1"
+bevy_defer = "0.15"
+bevy_tweening = "0.14"
 rand = "0.8.5"
 
 [dev-dependencies]
-bevy-inspector-egui = "0.31.0"
+bevy-inspector-egui = "0.34.0"
 
 [lints.clippy]
 too_many_arguments = "allow"

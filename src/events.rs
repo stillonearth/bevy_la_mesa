@@ -12,47 +12,47 @@ use crate::{
 
 // Events
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct RenderDeck<T: Send + Clone + Sync + Debug + CardMetadata + 'static> {
     pub deck_entity: Entity,
     pub deck: Vec<T>,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct DeckRendered {}
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct DeckShuffle {
     pub deck_entity: Entity,
     pub duration: u64,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct AlignCardsInHand {
     pub player: usize,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct PlaceCardOnTable {
     pub card_entity: Entity,
     pub marker: usize,
     pub player: usize,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct DiscardCardToDeck {
     pub card_entity: Entity,
     pub deck_entity: Entity,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct DrawToHand {
     pub deck_entity: Entity,
     pub num_cards: usize,
     pub player: usize,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct DrawToTable {
     pub deck_entity: Entity,
     pub play_area_markers: Vec<usize>,
@@ -60,7 +60,7 @@ pub struct DrawToTable {
     pub duration: u64,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct CardHover {
     pub entity: Entity,
 }
@@ -68,12 +68,12 @@ pub struct CardHover {
 impl From<Pointer<Over>> for CardHover {
     fn from(event: Pointer<Over>) -> Self {
         CardHover {
-            entity: event.target,
+            entity: event.entity,
         }
     }
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct CardOut {
     pub entity: Entity,
 }
@@ -81,20 +81,20 @@ pub struct CardOut {
 impl From<Pointer<Out>> for CardOut {
     fn from(event: Pointer<Out>) -> Self {
         CardOut {
-            entity: event.target,
+            entity: event.entity,
         }
     }
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct CardPress {
     pub entity: Entity,
 }
 
-impl From<Pointer<Pressed>> for CardPress {
-    fn from(event: Pointer<Pressed>) -> Self {
+impl From<Pointer<Press>> for CardPress {
+    fn from(event: Pointer<Press>) -> Self {
         CardPress {
-            entity: event.target,
+            entity: event.entity,
         }
     }
 }
@@ -102,7 +102,7 @@ impl From<Pointer<Pressed>> for CardPress {
 // Event Handlers
 pub fn handle_card_hover<T>(
     mut commands: Commands,
-    mut hover: EventReader<CardHover>,
+    mut hover: MessageReader<CardHover>,
     mut cards_in_hand: Query<(Entity, &mut Card<T>, &Hand, &mut Transform)>,
 ) where
     T: Send + Sync + Debug + 'static,
@@ -124,7 +124,7 @@ pub fn handle_card_hover<T>(
                     },
                 );
 
-                commands.entity(hover.entity).insert(Animator::new(tween));
+                commands.entity(hover.entity).insert(TweenAnim::new(tween));
             }
         }
     });
@@ -132,7 +132,7 @@ pub fn handle_card_hover<T>(
 
 pub fn handle_card_out<T>(
     mut commands: Commands,
-    mut out: EventReader<CardOut>,
+    mut out: MessageReader<CardOut>,
     mut query: Query<(Entity, &Card<T>, &Hand, &mut Transform)>,
 ) where
     T: Send + Sync + Debug + 'static,
@@ -149,7 +149,7 @@ pub fn handle_card_out<T>(
                     },
                 );
 
-                commands.entity(hover.entity).insert(Animator::new(tween));
+                commands.entity(hover.entity).insert(TweenAnim::new(tween));
             }
         }
     });
@@ -157,7 +157,7 @@ pub fn handle_card_out<T>(
 
 pub fn handle_deck_shuffle<T>(
     mut commands: Commands,
-    mut shuffle: EventReader<DeckShuffle>,
+    mut shuffle: MessageReader<DeckShuffle>,
     query_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck)>,
     query_deck: Query<(Entity, &Transform, &DeckArea), Without<Deck>>,
 ) where
@@ -212,7 +212,7 @@ pub fn handle_deck_shuffle<T>(
                 },
             );
 
-            let tween1: Tween<Transform> = Tween::new(
+            let tween1 = Tween::new(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
@@ -241,14 +241,14 @@ pub fn handle_deck_shuffle<T>(
 
             let seq = idle_tween.then(tween1).then(tween2).then(tween3);
 
-            commands.entity(*entity).insert(Animator::new(seq));
+            commands.entity(*entity).insert(TweenAnim::new(seq));
         }
     });
 }
 
 pub fn handle_place_card_on_table<T>(
     mut commands: Commands,
-    mut place_card_on_table: EventReader<PlaceCardOnTable>,
+    mut place_card_on_table: MessageReader<PlaceCardOnTable>,
     mut set: ParamSet<(
         Query<(Entity, &mut Transform, &PlayArea)>,
         Query<(Entity, &Card<T>, &mut Transform)>,
@@ -309,13 +309,13 @@ pub fn handle_place_card_on_table<T>(
                 marker: event.marker,
                 player: event.player,
             })
-            .insert(Animator::new(seq));
+            .insert(TweenAnim::new(seq));
     }
 }
 
 pub fn handle_discard_card_to_deck<T>(
     mut commands: Commands,
-    mut place_card_off_table: EventReader<DiscardCardToDeck>,
+    mut place_card_off_table: MessageReader<DiscardCardToDeck>,
     mut set: ParamSet<(
         Query<(Entity, &mut Transform, &Card<T>)>,
         Query<(Entity, &mut Transform, &DeckArea)>,
@@ -389,13 +389,13 @@ pub fn handle_discard_card_to_deck<T>(
             .insert(Deck {
                 marker: discard_deck_marker,
             })
-            .insert(Animator::new(seq));
+            .insert(TweenAnim::new(seq));
     }
 }
 
 pub fn handle_draw_to_table<T>(
     mut commands: Commands,
-    mut er_draw_hand: EventReader<DrawToTable>,
+    mut er_draw_hand: MessageReader<DrawToTable>,
     q_play_area_area: Query<(Entity, &mut Transform, &PlayArea)>,
     q_cards: Query<(Entity, &Card<T>, &mut Transform, &Deck), Without<PlayArea>>,
     q_decks: Query<(Entity, &DeckArea)>,
@@ -458,7 +458,7 @@ pub fn handle_draw_to_table<T>(
             );
 
             let slide = initial_translation + offset;
-            let tween1: Tween<Transform> = Tween::new(
+            let tween1 = Tween::new(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(draw.duration),
                 TransformPositionLens {
@@ -552,7 +552,7 @@ pub fn handle_draw_to_table<T>(
 
             commands
                 .entity(*entity)
-                .insert(Animator::new(seq))
+                .insert(TweenAnim::new(seq))
                 .insert(CardOnTable {
                     marker: play_area_marker,
                     player: draw.player,
@@ -565,7 +565,7 @@ pub fn handle_draw_to_table<T>(
 
 pub fn handle_draw_to_hand<T>(
     mut commands: Commands,
-    mut er_draw_hand: EventReader<DrawToHand>,
+    mut er_draw_hand: MessageReader<DrawToHand>,
     mut set: ParamSet<(
         Query<(Entity, &mut Transform, &HandArea)>,
         Query<(Entity, &mut Transform, &DeckArea)>,
@@ -656,7 +656,7 @@ pub fn handle_draw_to_hand<T>(
             );
 
             let slide = initial_translation + offset;
-            let tween1: Tween<Transform> = Tween::new(
+            let tween1 = Tween::new(
                 EaseFunction::QuadraticIn,
                 Duration::from_millis(duration),
                 TransformPositionLens {
@@ -754,7 +754,7 @@ pub fn handle_draw_to_hand<T>(
 
             commands
                 .entity(*entity)
-                .insert(Animator::new(seq))
+                .insert(TweenAnim::new(seq))
                 .remove::<Deck>()
                 // .insert(PickableBundle::default())
                 .insert(card);
@@ -789,8 +789,8 @@ pub fn handle_render_deck<T>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
-    mut er_render_deck: EventReader<RenderDeck<T>>,
-    mut ew_deck_rendered: EventWriter<DeckRendered>,
+    mut er_render_deck: MessageReader<RenderDeck<T>>,
+    mut ew_deck_rendered: MessageWriter<DeckRendered>,
 ) where
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
@@ -867,19 +867,19 @@ pub fn handle_render_deck<T>(
     }
 }
 
-fn on_card_click(click: Trigger<Pointer<Click>>, mut ew_card: EventWriter<CardPress>) {
+fn on_card_click(click: Trigger<Pointer<Click>>, mut ew_card: MessageWriter<CardPress>) {
     ew_card.write(CardPress {
         entity: click.target(),
     });
 }
 
-fn on_card_over(click: Trigger<Pointer<Over>>, mut ew_card: EventWriter<CardHover>) {
+fn on_card_over(click: Trigger<Pointer<Over>>, mut ew_card: MessageWriter<CardHover>) {
     ew_card.write(CardHover {
         entity: click.target(),
     });
 }
 
-fn on_card_out(click: Trigger<Pointer<Out>>, mut ew_card: EventWriter<CardOut>) {
+fn on_card_out(click: Trigger<Pointer<Out>>, mut ew_card: MessageWriter<CardOut>) {
     ew_card.write(CardOut {
         entity: click.target(),
     });
@@ -888,7 +888,7 @@ fn on_card_out(click: Trigger<Pointer<Out>>, mut ew_card: EventWriter<CardOut>) 
 pub fn handle_align_cards_in_hand<T>(
     mut commands: Commands,
     mut cards_in_hand: Query<(Entity, &mut Card<T>, &Hand, &mut Transform)>,
-    mut er_align_cards_in_hand: EventReader<AlignCardsInHand>,
+    mut er_align_cards_in_hand: MessageReader<AlignCardsInHand>,
 ) where
     T: Send + Clone + Sync + Debug + CardMetadata + 'static,
 {
@@ -916,7 +916,7 @@ pub fn handle_align_cards_in_hand<T>(
 
             card.transform = Some(Transform::from_translation(new_translation));
 
-            commands.entity(*entity).insert(Animator::new(tween));
+            commands.entity(*entity).insert(TweenAnim::new(tween));
         }
     }
 }
