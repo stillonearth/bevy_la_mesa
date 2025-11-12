@@ -15,10 +15,7 @@ fn main() {
         .add_systems(Startup, (setup, setup_ui))
         .add_systems(Update, (button_system, start_game))
         .add_plugins((
-            EguiPlugin {
-                enable_multipass_for_primary_context: true,
-                ..default()
-            },
+            EguiPlugin::default(),
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         ))
         .insert_resource(LaMesaPluginSettings { num_players: 1 })
@@ -76,7 +73,7 @@ fn setup(
 
 fn start_game(
     mut game_state: ResMut<GameState>,
-    mut ew_render_deck: EventWriter<RenderDeck<PokerCard>>,
+    mut ew_render_deck: MessageWriter<RenderDeck<PokerCard>>,
     q_decks: Query<(Entity, &DeckArea)>,
 ) {
     if game_state.game_started {
@@ -128,8 +125,8 @@ pub fn button_system(
     )>,
     decks: Query<(Entity, &DeckArea)>,
     mut text_query: Query<&mut Text>,
-    mut ew_shuffle: EventWriter<DeckShuffle>,
-    mut ew_draw: EventWriter<DrawToHand>,
+    mut ew_shuffle: MessageWriter<DeckShuffle>,
+    mut ew_draw: MessageWriter<DrawToHand>,
 ) {
     let deck_entity = decks.iter().next().unwrap().0;
 
@@ -188,6 +185,8 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
     commands
         .spawn((
             Node {
+                width: percent(100),
+                height: percent(100),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 ..default()
@@ -199,15 +198,17 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
             parent
                 .spawn((
                     Button,
-                    // Node {
-                    //     width: Val::Px(350.0),
-                    //     height: Val::Px(65.0),
-                    //     border: UiRect::all(Val::Px(5.0)),
-                    //     justify_content: JustifyContent::Center,
-                    //     align_items: AlignItems::Center,
-                    //     ..default()
-                    // },
-                    // BorderColor(Color::BLACK),
+                    Node {
+                        width: px(250),
+                        height: px(65),
+                        border: UiRect::all(px(5)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BorderColor::all(Color::WHITE),
                     BorderRadius::MAX,
                     BackgroundColor(NORMAL_BUTTON),
                     ButtonShuffleDeck,
@@ -225,15 +226,15 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
             parent
                 .spawn((
                     Button,
-                    // Node {
-                    //     width: Val::Px(250.0),
-                    //     height: Val::Px(65.0),
-                    //     border: UiRect::all(Val::Px(5.0)),
-                    //     justify_content: JustifyContent::Center,
-                    //     align_items: AlignItems::Center,
-                    //     ..default()
-                    // },
-                    // BorderColor(Color::BLACK),
+                    Node {
+                        width: px(250),
+                        height: px(65),
+                        border: UiRect::all(px(5)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BorderColor::all(Color::WHITE),
                     BorderRadius::MAX,
                     BackgroundColor(NORMAL_BUTTON),
                     ButtonDrawHand,

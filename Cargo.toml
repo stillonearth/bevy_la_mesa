@@ -1,6 +1,6 @@
 [package]
 name = "bevy_la_mesa"
-version = "0.17.0-rc1"
+version = "0.17.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Build card games with Bevy"
@@ -18,6 +18,9 @@ bevy = { version = "0.17", default-features = false, features = [
     "bevy_sprite",
     "bevy_state",
     "bevy_ui",
+    "bevy_ui",
+    "bevy_ui_picking_backend",
+    "bevy_ui_render",
     "bevy_window",
     "bevy_winit",
     "bevy_picking",
@@ -26,6 +29,7 @@ bevy = { version = "0.17", default-features = false, features = [
     "std",
     "animation",
     "default_font",
+    "bevy_input_focus",
     "jpeg",
     "multi_threaded",
     "png",
@@ -33,6 +37,7 @@ bevy = { version = "0.17", default-features = false, features = [
     "wayland",
     "web",
     "x11",
+    "reflect_auto_register",
     "zstd_rust"
 ] }
 bevy_asset_loader = "0.24.0-rc.1"

@@ -867,21 +867,21 @@ pub fn handle_render_deck<T>(
     }
 }
 
-fn on_card_click(click: Trigger<Pointer<Click>>, mut ew_card: MessageWriter<CardPress>) {
+fn on_card_click(click: On<Pointer<Click>>, mut ew_card: MessageWriter<CardPress>) {
     ew_card.write(CardPress {
-        entity: click.target(),
+        entity: click.event().entity,
     });
 }
 
-fn on_card_over(click: Trigger<Pointer<Over>>, mut ew_card: MessageWriter<CardHover>) {
+fn on_card_over(click: On<Pointer<Over>>, mut ew_card: MessageWriter<CardHover>) {
     ew_card.write(CardHover {
-        entity: click.target(),
+        entity: click.event().entity,
     });
 }
 
-fn on_card_out(click: Trigger<Pointer<Out>>, mut ew_card: MessageWriter<CardOut>) {
+fn on_card_out(click: On<Pointer<Out>>, mut ew_card: MessageWriter<CardOut>) {
     ew_card.write(CardOut {
-        entity: click.target(),
+        entity: click.event().entity,
     });
 }
 
