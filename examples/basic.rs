@@ -9,7 +9,7 @@ use bevy_la_mesa::{CardMetadata, DeckArea, HandArea, LaMesaPlugin, LaMesaPluginS
 // // Main
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, MeshPickingPlugin))
+        .add_plugins((DefaultPlugins))
         .add_plugins(LaMesaPlugin::<PokerCard>::default())
         .add_plugins(AsyncPlugin::default_settings())
         .add_systems(Startup, (setup, setup_ui))
@@ -37,7 +37,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // light
-    commands.insert_resource(AmbientLight {
+    commands.insert_resource(GlobalAmbientLight {
         color: WHITE.into(),
         brightness: 1000.0,
         ..default()
@@ -191,6 +191,10 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
                 justify_content: JustifyContent::Center,
                 ..default()
             },
+            UiTransform {
+                translation: Val2::percent(0.0, 40.0),
+                ..default()
+            },
             Name::new("UI"),
         ))
         .with_children(|parent| {
@@ -209,7 +213,6 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
                         ..default()
                     },
                     BorderColor::all(Color::WHITE),
-                    BorderRadius::MAX,
                     BackgroundColor(NORMAL_BUTTON),
                     ButtonShuffleDeck,
                 ))
@@ -235,7 +238,6 @@ pub fn setup_ui(mut commands: Commands, _sasset_server: Res<AssetServer>) {
                         ..default()
                     },
                     BorderColor::all(Color::WHITE),
-                    BorderRadius::MAX,
                     BackgroundColor(NORMAL_BUTTON),
                     ButtonDrawHand,
                 ))
